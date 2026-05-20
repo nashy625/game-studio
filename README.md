@@ -1,11 +1,12 @@
 # Nashy Game Studio Arcade
 
-A native macOS SpriteKit arcade app containing three small portfolio games:
+A native macOS SpriteKit arcade app containing five small portfolio games:
 
 - **One Button Samurai**: press Space to dash, parry close calls, build focus, and survive the ambush.
 - **Micro Dungeon**: use WASD or arrow keys to clear three procedural tactical floors with traps, relics, armor, and upgrades.
 - **Stock Market Survivor**: buy, sell, or hold through timed market shocks and protect your portfolio for 30 days.
 - **Neon Pong Royale**: use W/S or arrow keys to win a first-to-seven paddle duel.
+- **Campus Dash**: collect notes, dodge bikes, and reach class before the timer runs out.
 
 ## Why This Exists
 
@@ -45,3 +46,4 @@ dist/Nashy Game Studio Arcade.app
 - Micro Dungeon: `WASD` or arrow keys.
 - Stock Market Survivor: `B` to buy, `S` to sell, `H` to hold.
 - Neon Pong Royale: `W/S` or arrow keys.
+- Campus Dash: `WASD` or arrow keys.

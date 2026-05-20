@@ -56,6 +56,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             scene = StockScene(size: skView.bounds.size)
         case .pong:
             scene = PongScene(size: skView.bounds.size)
+        case .campus:
+            scene = CampusDashScene(size: skView.bounds.size)
         }
         scene.scaleMode = .resizeFill
         scene.onExit = { [weak self] in
@@ -79,6 +81,7 @@ enum GameKind: String, CaseIterable {
     case dungeon
     case stocks
     case pong
+    case campus
 
     var title: String {
         switch self {
@@ -86,6 +89,7 @@ enum GameKind: String, CaseIterable {
         case .dungeon: return "Micro Dungeon"
         case .stocks: return "Stock Market Survivor"
         case .pong: return "Neon Pong Royale"
+        case .campus: return "Campus Dash"
         }
     }
 
@@ -95,6 +99,7 @@ enum GameKind: String, CaseIterable {
         case .dungeon: return "Clear tiny tactical floors before your hearts run out."
         case .stocks: return "Trade through chaos and survive the closing bell."
         case .pong: return "Win a first-to-seven neon duel against a ruthless AI."
+        case .campus: return "Sprint to class while dodging bikes and collecting notes."
         }
     }
 
@@ -104,6 +109,7 @@ enum GameKind: String, CaseIterable {
         case .dungeon: return NSColor(calibratedRed: 0.15, green: 0.78, blue: 0.49, alpha: 1)
         case .stocks: return NSColor(calibratedRed: 0.16, green: 0.55, blue: 0.95, alpha: 1)
         case .pong: return NSColor(calibratedRed: 0.90, green: 0.20, blue: 0.95, alpha: 1)
+        case .campus: return NSColor(calibratedRed: 0.98, green: 0.63, blue: 0.12, alpha: 1)
         }
     }
 }
@@ -157,16 +163,24 @@ final class MenuScene: SKScene {
         subtitle.position = CGPoint(x: size.width / 2, y: size.height - 128)
         addChild(subtitle)
 
-        let columns = GameKind.allCases.count
-        let cardWidth = min(230, max(190, (size.width - 120) / CGFloat(columns)))
-        let cardSize = CGSize(width: cardWidth, height: 270)
-        let spacing = min(24, max(14, (size.width - cardWidth * CGFloat(columns) - 80) / CGFloat(max(1, columns - 1))))
-        let totalWidth = cardWidth * CGFloat(columns) + spacing * CGFloat(columns - 1)
+        let games = GameKind.allCases
+        let columns = min(3, games.count)
+        let rows = Int(ceil(Double(games.count) / Double(columns)))
+        let cardWidth = min(286, max(210, (size.width - 120) / CGFloat(columns)))
+        let cardHeight = rows > 1 ? CGFloat(205) : CGFloat(270)
+        let cardSize = CGSize(width: cardWidth, height: cardHeight)
+        let spacingX = min(30, max(18, (size.width - cardWidth * CGFloat(columns) - 80) / CGFloat(max(1, columns - 1))))
+        let spacingY: CGFloat = 22
+        let totalWidth = cardWidth * CGFloat(columns) + spacingX * CGFloat(columns - 1)
+        let totalHeight = cardHeight * CGFloat(rows) + spacingY * CGFloat(rows - 1)
         let startX = size.width / 2 - totalWidth / 2 + cardWidth / 2
+        let startY = size.height / 2 + totalHeight / 2 - cardHeight / 2 - 4
 
-        for (index, game) in GameKind.allCases.enumerated() {
-            let x = startX + CGFloat(index) * (cardWidth + spacing)
-            let y = size.height / 2 - 10
+        for (index, game) in games.enumerated() {
+            let col = index % columns
+            let row = index / columns
+            let x = startX + CGFloat(col) * (cardWidth + spacingX)
+            let y = startY - CGFloat(row) * (cardHeight + spacingY)
             cardFrames[game] = CGRect(x: x - cardSize.width / 2, y: y - cardSize.height / 2, width: cardSize.width, height: cardSize.height)
 
             let card = roundedRect(size: cardSize, radius: 8, color: .panel, stroke: game.accent, lineWidth: 3)
@@ -176,7 +190,7 @@ final class MenuScene: SKScene {
             let icon = SKShapeNode(circleOfRadius: 42)
             icon.fillColor = game.accent
             icon.strokeColor = .clear
-            icon.position = CGPoint(x: x, y: y + 70)
+            icon.position = CGPoint(x: x, y: y + cardHeight * 0.27)
             addChild(icon)
 
             let glyph = label(glyphFor(game), size: 38, color: .ink)
@@ -184,18 +198,18 @@ final class MenuScene: SKScene {
             addChild(glyph)
 
             let titleNode = label(game.title, size: 23, color: .bone)
-            titleNode.position = CGPoint(x: x, y: y + 10)
+            titleNode.position = CGPoint(x: x, y: y + 2)
             addChild(titleNode)
 
             let lines = wrapped(game.subtitle, max: 28)
             for (lineIndex, line) in lines.enumerated() {
                 let lineNode = label(line, size: 14, color: SKColor.bone.withAlphaComponent(0.72), weight: .regular)
-                lineNode.position = CGPoint(x: x, y: y - 30 - CGFloat(lineIndex) * 20)
+                lineNode.position = CGPoint(x: x, y: y - 34 - CGFloat(lineIndex) * 18)
                 addChild(lineNode)
             }
 
             let cta = label("PLAY", size: 16, color: game.accent)
-            cta.position = CGPoint(x: x, y: y - 98)
+            cta.position = CGPoint(x: x, y: y - cardHeight * 0.38)
             addChild(cta)
         }
 
@@ -218,6 +232,7 @@ final class MenuScene: SKScene {
         case .dungeon: return "#"
         case .stocks: return "$"
         case .pong: return "*"
+        case .campus: return "@"
         }
     }
 
@@ -1178,6 +1193,217 @@ final class PongScene: BaseGameScene {
         ai.position = CGPoint(x: size.width - 76, y: size.height / 2)
         updateScoreText()
         serve(towardPlayer: false)
+    }
+
+    private func clamped(_ value: CGFloat, min minValue: CGFloat, max maxValue: CGFloat) -> CGFloat {
+        Swift.max(minValue, Swift.min(maxValue, value))
+    }
+}
+
+final class CampusDashScene: BaseGameScene {
+    private let runner = SKShapeNode(circleOfRadius: 20)
+    private let goal = SKShapeNode(rectOf: CGSize(width: 250, height: 44), cornerRadius: 8)
+    private var bikes: [SKShapeNode] = []
+    private var notes: [SKShapeNode] = []
+    private var keysDown = Set<UInt16>()
+    private var lastUpdateTime: TimeInterval = 0
+    private var bikeTimer: TimeInterval = 0
+    private var noteTimer: TimeInterval = 0
+    private var invulnerableTimer: TimeInterval = 0
+    private var timeLeft: TimeInterval = 45
+    private var hearts = 3
+    private var noteCount = 0
+    private var score = 0
+
+    override func didMove(to view: SKView) {
+        super.didMove(to: view)
+        backgroundColor = SKColor(calibratedRed: 0.04, green: 0.08, blue: 0.07, alpha: 1)
+        help.text = "WASD/arrows: move   collect 5 notes   R: restart   Esc: menu"
+
+        goal.fillColor = SKColor(calibratedRed: 0.15, green: 0.78, blue: 0.49, alpha: 0.26)
+        goal.strokeColor = SKColor(calibratedRed: 0.15, green: 0.78, blue: 0.49, alpha: 1)
+        goal.lineWidth = 3
+        goal.position = CGPoint(x: size.width / 2, y: size.height - 82)
+        addChild(goal)
+
+        let goalLabel = label("CLASS", size: 17, color: SKColor(calibratedRed: 0.15, green: 0.78, blue: 0.49, alpha: 1))
+        goalLabel.position = goal.position
+        goalLabel.name = "campus"
+        addChild(goalLabel)
+
+        for lane in 0..<5 {
+            let line = SKShapeNode(rectOf: CGSize(width: size.width - 160, height: 2), cornerRadius: 1)
+            line.fillColor = SKColor.bone.withAlphaComponent(0.08)
+            line.strokeColor = .clear
+            line.position = CGPoint(x: size.width / 2, y: 160 + CGFloat(lane) * 82)
+            line.name = "campus"
+            addChild(line)
+        }
+
+        runner.fillColor = .bone
+        runner.strokeColor = SKColor(calibratedRed: 0.98, green: 0.63, blue: 0.12, alpha: 1)
+        runner.lineWidth = 4
+        runner.position = startPosition()
+        addChild(runner)
+
+        for _ in 0..<5 {
+            spawnNote()
+        }
+        updateHUD()
+    }
+
+    override func didChangeSize(_ oldSize: CGSize) {
+        super.didChangeSize(oldSize)
+        goal.position = CGPoint(x: size.width / 2, y: size.height - 82)
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.charactersIgnoringModifiers?.lowercased() == "r" {
+            restart()
+            return
+        }
+        keysDown.insert(event.keyCode)
+        super.keyDown(with: event)
+    }
+
+    override func keyUp(with event: NSEvent) {
+        keysDown.remove(event.keyCode)
+    }
+
+    override func update(_ currentTime: TimeInterval) {
+        if lastUpdateTime == 0 { lastUpdateTime = currentTime }
+        let dt = min(currentTime - lastUpdateTime, 0.033)
+        lastUpdateTime = currentTime
+        if isGameOver { return }
+
+        timeLeft -= dt
+        bikeTimer -= dt
+        noteTimer -= dt
+        invulnerableTimer -= dt
+
+        moveRunner(dt)
+        if bikeTimer <= 0 {
+            spawnBike()
+            bikeTimer = max(0.32, 0.78 - Double(score) * 0.006)
+        }
+        if noteTimer <= 0 && notes.count < 7 {
+            spawnNote()
+            noteTimer = 3.5
+        }
+
+        for bike in bikes {
+            let vx = bike.userData?["vx"] as? CGFloat ?? 0
+            bike.position.x += vx * CGFloat(dt)
+            if bike.position.x < -80 || bike.position.x > size.width + 80 {
+                bike.removeFromParent()
+            } else if invulnerableTimer <= 0 && bike.frame.intersects(runner.frame.insetBy(dx: 4, dy: 4)) {
+                hitBike()
+            }
+        }
+        bikes.removeAll { $0.parent == nil }
+
+        for note in notes where note.frame.intersects(runner.frame) {
+            note.removeFromParent()
+            noteCount += 1
+            score += 35
+            pulse(at: note.position, color: .gold)
+        }
+        notes.removeAll { $0.parent == nil }
+
+        if runner.frame.intersects(goal.frame) && noteCount >= 5 {
+            showEnd(title: "Made It To Class", detail: "Notes: \(noteCount)   Score: \(score + Int(timeLeft) * 10)")
+        } else if timeLeft <= 0 {
+            showEnd(title: "Late Again", detail: "You reached \(noteCount)/5 notes.", color: SKColor(calibratedRed: 0.95, green: 0.18, blue: 0.16, alpha: 1))
+        }
+        updateHUD()
+    }
+
+    private func moveRunner(_ dt: TimeInterval) {
+        var dx: CGFloat = 0
+        var dy: CGFloat = 0
+        if keysDown.contains(0) || keysDown.contains(123) { dx -= 1 }
+        if keysDown.contains(2) || keysDown.contains(124) { dx += 1 }
+        if keysDown.contains(13) || keysDown.contains(126) { dy += 1 }
+        if keysDown.contains(1) || keysDown.contains(125) { dy -= 1 }
+        let length = max(1, hypot(dx, dy))
+        let speed: CGFloat = noteCount >= 5 ? 335 : 300
+        runner.position.x = clamped(runner.position.x + dx / length * speed * CGFloat(dt), min: 46, max: size.width - 46)
+        runner.position.y = clamped(runner.position.y + dy / length * speed * CGFloat(dt), min: 60, max: size.height - 48)
+        runner.alpha = invulnerableTimer > 0 ? 0.55 : 1
+    }
+
+    private func spawnBike() {
+        let fromLeft = Bool.random()
+        let bike = SKShapeNode(rectOf: CGSize(width: 58, height: 24), cornerRadius: 7)
+        bike.fillColor = SKColor(calibratedRed: 0.16, green: 0.55, blue: 0.95, alpha: 1)
+        bike.strokeColor = .clear
+        bike.position = CGPoint(x: fromLeft ? -40 : size.width + 40, y: CGFloat.random(in: 150...(size.height - 150)))
+        bike.userData = ["vx": (fromLeft ? CGFloat.random(in: 220...360) : -CGFloat.random(in: 220...360))]
+        addChild(bike)
+        bikes.append(bike)
+    }
+
+    private func spawnNote() {
+        let note = SKShapeNode(circleOfRadius: 12)
+        note.fillColor = .gold
+        note.strokeColor = .clear
+        note.position = CGPoint(x: CGFloat.random(in: 96...(size.width - 96)), y: CGFloat.random(in: 150...(size.height - 150)))
+        addChild(note)
+        notes.append(note)
+    }
+
+    private func hitBike() {
+        hearts -= 1
+        invulnerableTimer = 1.2
+        score = max(0, score - 25)
+        pulse(at: runner.position, color: SKColor(calibratedRed: 0.95, green: 0.18, blue: 0.16, alpha: 1))
+        runner.position = startPosition()
+        if hearts <= 0 {
+            showEnd(title: "Campus Collision", detail: "Collected \(noteCount)/5 notes.", color: SKColor(calibratedRed: 0.95, green: 0.18, blue: 0.16, alpha: 1))
+        }
+    }
+
+    private func updateHUD() {
+        hud.text = "Campus Dash   Notes \(noteCount)/5   Hearts \(hearts)   Time \(max(0, Int(ceil(timeLeft))))   Score \(score)"
+    }
+
+    private func restart() {
+        children.filter { $0.zPosition >= 1000 }.forEach { $0.removeFromParent() }
+        bikes.forEach { $0.removeFromParent() }
+        notes.forEach { $0.removeFromParent() }
+        bikes.removeAll()
+        notes.removeAll()
+        keysDown.removeAll()
+        lastUpdateTime = 0
+        bikeTimer = 0
+        noteTimer = 0
+        invulnerableTimer = 0
+        timeLeft = 45
+        hearts = 3
+        noteCount = 0
+        score = 0
+        isGameOver = false
+        runner.position = startPosition()
+        for _ in 0..<5 {
+            spawnNote()
+        }
+        updateHUD()
+    }
+
+    private func pulse(at point: CGPoint, color: SKColor) {
+        let flash = SKShapeNode(circleOfRadius: 20)
+        flash.fillColor = color.withAlphaComponent(0.26)
+        flash.strokeColor = .clear
+        flash.position = point
+        addChild(flash)
+        flash.run(.sequence([
+            .group([.scale(to: 2.6, duration: 0.22), .fadeOut(withDuration: 0.22)]),
+            .removeFromParent()
+        ]))
+    }
+
+    private func startPosition() -> CGPoint {
+        CGPoint(x: size.width / 2, y: 72)
     }
 
     private func clamped(_ value: CGFloat, min minValue: CGFloat, max maxValue: CGFloat) -> CGFloat {
