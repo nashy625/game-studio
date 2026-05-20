@@ -14,6 +14,10 @@ This repo is the start of a small native game studio pipeline: build compact,
 finished desktop games for portfolio demos, then polish the strongest concepts
 toward Steam-ready releases.
 
+The arcade shell uses a Steam-inspired library menu with capsule-style game
+cards, genre labels, and release-build positioning so the collection reads like
+an indie store shelf rather than a loose prototype folder.
+
 ## Run in Development
 
 ```bash

@@ -112,6 +112,26 @@ enum GameKind: String, CaseIterable {
         case .campus: return NSColor(calibratedRed: 0.98, green: 0.63, blue: 0.12, alpha: 1)
         }
     }
+
+    var genre: String {
+        switch self {
+        case .samurai: return "ACTION / TIMING"
+        case .dungeon: return "ROGUELIKE / TACTICS"
+        case .stocks: return "ARCADE / STRATEGY"
+        case .pong: return "SPORTS / ARCADE"
+        case .campus: return "DODGER / ROUTE RUN"
+        }
+    }
+
+    var capsuleLine: String {
+        switch self {
+        case .samurai: return "Parry. Dash. Survive."
+        case .dungeon: return "Tiny runs. Real choices."
+        case .stocks: return "Beat the market shock."
+        case .pong: return "Neon table duel."
+        case .campus: return "Make it before class."
+        }
+    }
 }
 
 extension SKColor {
@@ -155,11 +175,17 @@ final class MenuScene: SKScene {
 
     private func build() {
         cardFrames.removeAll()
-        let title = label("Nashy Game Studio", size: 46, color: .bone)
+        drawBackdrop()
+
+        let badge = label("STEAM-READY PROTOTYPE LAB", size: 14, color: .gold, weight: .regular)
+        badge.position = CGPoint(x: size.width / 2, y: size.height - 42)
+        addChild(badge)
+
+        let title = label("Nashy Game Studio", size: 50, color: .bone)
         title.position = CGPoint(x: size.width / 2, y: size.height - 86)
         addChild(title)
 
-        let subtitle = label("Desktop arcade builds for portfolio and Steam prototypes", size: 18, color: SKColor.bone.withAlphaComponent(0.72), weight: .regular)
+        let subtitle = label("Native desktop games with polished loops, capsule art direction, and release-ready structure", size: 17, color: SKColor.bone.withAlphaComponent(0.72), weight: .regular)
         subtitle.position = CGPoint(x: size.width / 2, y: size.height - 128)
         addChild(subtitle)
 
@@ -183,39 +209,73 @@ final class MenuScene: SKScene {
             let y = startY - CGFloat(row) * (cardHeight + spacingY)
             cardFrames[game] = CGRect(x: x - cardSize.width / 2, y: y - cardSize.height / 2, width: cardSize.width, height: cardSize.height)
 
-            let card = roundedRect(size: cardSize, radius: 8, color: .panel, stroke: game.accent, lineWidth: 3)
+            let card = roundedRect(size: cardSize, radius: 8, color: SKColor(calibratedRed: 0.07, green: 0.08, blue: 0.10, alpha: 0.98), stroke: game.accent, lineWidth: 2)
             card.position = CGPoint(x: x, y: y)
             addChild(card)
 
-            let icon = SKShapeNode(circleOfRadius: 42)
+            let capsule = roundedRect(size: CGSize(width: cardWidth - 22, height: cardHeight * 0.42), radius: 6, color: game.accent.withAlphaComponent(0.28), stroke: SKColor.bone.withAlphaComponent(0.10), lineWidth: 1)
+            capsule.position = CGPoint(x: x, y: y + cardHeight * 0.22)
+            addChild(capsule)
+
+            for stripe in 0..<5 {
+                let line = SKShapeNode(rectOf: CGSize(width: cardWidth - 52, height: 3), cornerRadius: 2)
+                line.fillColor = game.accent.withAlphaComponent(0.30)
+                line.strokeColor = .clear
+                line.zRotation = -0.28
+                line.position = CGPoint(x: x + CGFloat(stripe - 2) * 26, y: y + cardHeight * 0.22 + CGFloat(stripe - 2) * 9)
+                addChild(line)
+            }
+
+            let icon = SKShapeNode(circleOfRadius: 34)
             icon.fillColor = game.accent
             icon.strokeColor = .clear
-            icon.position = CGPoint(x: x, y: y + cardHeight * 0.27)
+            icon.position = CGPoint(x: x, y: y + cardHeight * 0.22)
             addChild(icon)
 
-            let glyph = label(glyphFor(game), size: 38, color: .ink)
+            let glyph = label(glyphFor(game), size: 31, color: .ink)
             glyph.position = icon.position
             addChild(glyph)
 
-            let titleNode = label(game.title, size: 23, color: .bone)
-            titleNode.position = CGPoint(x: x, y: y + 2)
+            let titleNode = label(game.title, size: 21, color: .bone)
+            titleNode.position = CGPoint(x: x, y: y - 12)
             addChild(titleNode)
 
-            let lines = wrapped(game.subtitle, max: 28)
+            let lines = wrapped(game.capsuleLine, max: 28)
             for (lineIndex, line) in lines.enumerated() {
                 let lineNode = label(line, size: 14, color: SKColor.bone.withAlphaComponent(0.72), weight: .regular)
-                lineNode.position = CGPoint(x: x, y: y - 34 - CGFloat(lineIndex) * 18)
+                lineNode.position = CGPoint(x: x, y: y - 42 - CGFloat(lineIndex) * 17)
                 addChild(lineNode)
             }
 
-            let cta = label("PLAY", size: 16, color: game.accent)
-            cta.position = CGPoint(x: x, y: y - cardHeight * 0.38)
+            let genre = label(game.genre, size: 11, color: SKColor.bone.withAlphaComponent(0.62), weight: .regular)
+            genre.position = CGPoint(x: x, y: y - cardHeight * 0.33)
+            addChild(genre)
+
+            let cta = label("PLAY BUILD", size: 14, color: game.accent)
+            cta.position = CGPoint(x: x, y: y - cardHeight * 0.42)
             addChild(cta)
         }
 
-        let footer = label("Click a game. Press Esc inside any game to return.", size: 16, color: SKColor.bone.withAlphaComponent(0.58), weight: .regular)
+        let footer = label("Click a capsule. Press Esc inside any game to return.", size: 16, color: SKColor.bone.withAlphaComponent(0.58), weight: .regular)
         footer.position = CGPoint(x: size.width / 2, y: 46)
         addChild(footer)
+    }
+
+    private func drawBackdrop() {
+        let heroBand = roundedRect(size: CGSize(width: size.width - 90, height: size.height - 120), radius: 8, color: SKColor(calibratedRed: 0.06, green: 0.07, blue: 0.09, alpha: 0.70), stroke: SKColor.bone.withAlphaComponent(0.08), lineWidth: 1)
+        heroBand.position = CGPoint(x: size.width / 2, y: size.height / 2 - 18)
+        heroBand.zPosition = -10
+        addChild(heroBand)
+
+        for index in 0..<24 {
+            let dot = SKShapeNode(circleOfRadius: CGFloat.random(in: 1.2...2.6))
+            dot.fillColor = SKColor.bone.withAlphaComponent(CGFloat.random(in: 0.08...0.22))
+            dot.strokeColor = .clear
+            dot.position = CGPoint(x: CGFloat.random(in: 40...(size.width - 40)), y: CGFloat.random(in: 70...(size.height - 60)))
+            dot.zPosition = -9
+            dot.name = "spark-\(index)"
+            addChild(dot)
+        }
     }
 
     override func mouseDown(with event: NSEvent) {
