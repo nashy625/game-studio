@@ -299,24 +299,35 @@ class BaseGameScene: SKScene {
 final class SamuraiScene: BaseGameScene {
     private let player = SKShapeNode(circleOfRadius: 24)
     private let sword = SKShapeNode(rectOf: CGSize(width: 64, height: 8), cornerRadius: 3)
+    private let parryRing = SKShapeNode(circleOfRadius: 58)
     private var enemies: [SKShapeNode] = []
     private var particles: [SKShapeNode] = []
     private var lastUpdateTime: TimeInterval = 0
     private var spawnTimer: TimeInterval = 0
     private var dashTimer: TimeInterval = 0
     private var dashCooldown: TimeInterval = 0
+    private var slowMoTimer: TimeInterval = 0
     private var score = 0
     private var streak = 0
+    private var parries = 0
+    private var focus = 0
     private var enemySpeed: CGFloat = 225
 
     override func didMove(to view: SKView) {
         super.didMove(to: view)
-        help.text = "Space: dash   R: restart   Esc: menu"
+        help.text = "Space: dash / parry / strike   R: restart   Esc: menu"
         player.fillColor = .bone
         player.strokeColor = SKColor(calibratedRed: 0.95, green: 0.18, blue: 0.16, alpha: 1)
         player.lineWidth = 4
         player.position = CGPoint(x: 150, y: size.height / 2)
         addChild(player)
+
+        parryRing.strokeColor = .gold.withAlphaComponent(0.36)
+        parryRing.fillColor = .clear
+        parryRing.lineWidth = 3
+        parryRing.position = player.position
+        parryRing.alpha = 0
+        addChild(parryRing)
 
         sword.fillColor = .gold
         sword.strokeColor = .clear
@@ -336,6 +347,18 @@ final class SamuraiScene: BaseGameScene {
             return
         }
         if event.keyCode == 49 && dashCooldown <= 0 {
+            if let parryTarget = enemies.first(where: { abs($0.position.x - player.position.x) < 92 && abs($0.position.y - player.position.y) < 70 }) {
+                parry(parryTarget)
+                dashCooldown = 0.30
+                super.keyDown(with: event)
+                return
+            }
+            if focus >= 3 {
+                focusStrike()
+                dashCooldown = 0.42
+                super.keyDown(with: event)
+                return
+            }
             dashTimer = 0.20
             dashCooldown = 0.55
             sword.isHidden = false
@@ -356,6 +379,7 @@ final class SamuraiScene: BaseGameScene {
         spawnTimer -= dt
         dashTimer -= dt
         dashCooldown -= dt
+        slowMoTimer -= dt
         if dashTimer <= 0 { sword.isHidden = true }
         if spawnTimer <= 0 {
             spawnEnemy()
@@ -364,7 +388,10 @@ final class SamuraiScene: BaseGameScene {
 
         let activeDash = dashTimer > 0
         for enemy in enemies {
-            enemy.position.x -= (enemySpeed + CGFloat(score) * 4) * CGFloat(dt)
+            let slowMo = slowMoTimer > 0 ? CGFloat(0.44) : CGFloat(1)
+            enemy.position.x -= (enemySpeed + CGFloat(score) * 4) * slowMo * CGFloat(dt)
+            let dangerDistance = abs(enemy.position.x - player.position.x)
+            enemy.alpha = dangerDistance < 110 ? 1 : 0.86
             if activeDash && enemy.frame.intersects(player.calculateAccumulatedFrame()) {
                 kill(enemy)
             } else if enemy.frame.intersects(player.frame.insetBy(dx: 8, dy: 8)) {
@@ -375,6 +402,7 @@ final class SamuraiScene: BaseGameScene {
             }
         }
         enemies.removeAll { $0.parent == nil || $0.position.x < -60 }
+        parryRing.position = player.position
         updateParticles(dt)
         updateHUD()
     }
@@ -407,6 +435,35 @@ final class SamuraiScene: BaseGameScene {
         }
     }
 
+    private func parry(_ enemy: SKShapeNode) {
+        parries += 1
+        focus = min(3, focus + 1)
+        streak += 1
+        score += 2
+        slowMoTimer = 0.42
+        kill(enemy)
+        parryRing.alpha = 1
+        parryRing.setScale(0.35)
+        parryRing.run(.sequence([
+            .group([.scale(to: 1.22, duration: 0.18), .fadeOut(withDuration: 0.22)]),
+            .scale(to: 1.0, duration: 0.01)
+        ]))
+    }
+
+    private func focusStrike() {
+        focus = 0
+        let targets = enemies.filter { $0.position.x < size.width - 80 }
+        for enemy in targets.prefix(5) {
+            kill(enemy)
+        }
+        let slash = SKShapeNode(rectOf: CGSize(width: size.width, height: 6), cornerRadius: 3)
+        slash.fillColor = .gold
+        slash.strokeColor = .clear
+        slash.position = CGPoint(x: size.width / 2, y: player.position.y)
+        addChild(slash)
+        slash.run(.sequence([.fadeOut(withDuration: 0.18), .removeFromParent()]))
+    }
+
     private func updateParticles(_ dt: TimeInterval) {
         for p in particles {
             let vx = p.userData?["vx"] as? CGFloat ?? 0
@@ -422,7 +479,8 @@ final class SamuraiScene: BaseGameScene {
     }
 
     private func updateHUD() {
-        hud.text = "One Button Samurai   Score \(score)   Streak \(streak)"
+        let focusPips = String(repeating: "|", count: focus).padding(toLength: 3, withPad: ".", startingAt: 0)
+        hud.text = "One Button Samurai   Score \(score)   Streak \(streak)   Parries \(parries)   Focus \(focusPips)"
     }
 
     private func reset() {
@@ -433,8 +491,11 @@ final class SamuraiScene: BaseGameScene {
         spawnTimer = 0
         dashTimer = 0
         dashCooldown = 0
+        slowMoTimer = 0
         score = 0
         streak = 0
+        parries = 0
+        focus = 0
         isGameOver = false
         didMove(to: view!)
     }
@@ -446,18 +507,29 @@ final class DungeonScene: BaseGameScene {
     private let tile: CGFloat = 54
     private var origin = CGPoint.zero
     private var walls = Set<GridPoint>()
+    private var traps = Set<GridPoint>()
     private var enemies: [GridPoint] = []
     private var loot = Set<GridPoint>()
     private var player = GridPoint(x: 1, y: 1)
     private var exit = GridPoint(x: 10, y: 6)
     private var hp = 5
+    private var maxHP = 5
     private var floor = 1
     private var score = 0
-    private var rng = GKRandomSource.sharedRandom()
+    private var armor = 0
+    private var relics = 0
+    private var upgrades: [String] = []
+    private let banner = SKLabelNode(fontNamed: "AvenirNext-Bold")
 
     override func didMove(to view: SKView) {
         super.didMove(to: view)
         help.text = "WASD/arrows: move or attack   R: restart   Esc: menu"
+        banner.fontSize = 18
+        banner.fontColor = .gold
+        banner.verticalAlignmentMode = .center
+        banner.position = CGPoint(x: size.width / 2, y: 86)
+        banner.alpha = 0
+        addChild(banner)
         startFloor()
     }
 
@@ -484,6 +556,7 @@ final class DungeonScene: BaseGameScene {
 
     private func startFloor() {
         walls.removeAll()
+        traps.removeAll()
         enemies.removeAll()
         loot.removeAll()
         player = GridPoint(x: 1, y: 1)
@@ -503,11 +576,14 @@ final class DungeonScene: BaseGameScene {
             let p = randomOpen(excluding: blocked)
             walls.insert(p)
         }
+        for _ in 0..<(2 + floor + relics / 2) {
+            enemies.append(randomOpen(excluding: blocked.union(walls).union(traps).union(Set(enemies))))
+        }
         for _ in 0..<(2 + floor) {
-            enemies.append(randomOpen(excluding: blocked.union(walls).union(Set(enemies))))
+            traps.insert(randomOpen(excluding: blocked.union(walls).union(Set(enemies)).union(traps)))
         }
         for _ in 0..<3 {
-            loot.insert(randomOpen(excluding: blocked.union(walls).union(Set(enemies)).union(loot)))
+            loot.insert(randomOpen(excluding: blocked.union(walls).union(Set(enemies)).union(traps).union(loot)))
         }
         draw()
     }
@@ -517,23 +593,37 @@ final class DungeonScene: BaseGameScene {
         if walls.contains(target) { return }
         if let enemyIndex = enemies.firstIndex(of: target) {
             enemies.remove(at: enemyIndex)
-            score += 20
+            score += 20 + relics * 5
         } else {
             player = target
         }
         if loot.contains(player) {
             loot.remove(player)
-            hp = min(7, hp + 1)
+            if Bool.random() {
+                hp = min(maxHP, hp + 2)
+                flashBanner("Potion found: +2 HP")
+            } else {
+                relics += 1
+                score += 25
+                flashBanner("Relic found: richer floor clears")
+            }
             score += 10
+        }
+        if traps.contains(player) {
+            traps.remove(player)
+            let blocked = armor > 0
+            takeDamage()
+            flashBanner(blocked ? "Armor cracked on a trap" : "Trap sprung: -1 HP")
         }
         if player == exit {
             floor += 1
-            score += 100
+            score += 100 + relics * 25
             if floor > 3 {
                 draw()
-                showEnd(title: "Dungeon Cleared", detail: "Score: \(score)")
+                showEnd(title: "Dungeon Cleared", detail: "Score: \(score)   Relics: \(relics)")
                 return
             }
+            applyUpgrade()
             startFloor()
             return
         }
@@ -563,7 +653,7 @@ final class DungeonScene: BaseGameScene {
             }
             occupied.insert(enemies[index])
             if enemies[index] == player {
-                hp -= 1
+                takeDamage()
                 enemies[index] = e
             }
         }
@@ -572,7 +662,8 @@ final class DungeonScene: BaseGameScene {
     private func draw() {
         children.filter { $0.name == "dungeon" }.forEach { $0.removeFromParent() }
         origin = CGPoint(x: size.width / 2 - CGFloat(cols) * tile / 2 + tile / 2, y: size.height / 2 - CGFloat(rows) * tile / 2 + tile / 2 - 4)
-        hud.text = "Micro Dungeon   Floor \(floor)/3   HP \(hp)   Score \(score)"
+        let upgradeText = upgrades.isEmpty ? "No upgrades" : upgrades.joined(separator: ", ")
+        hud.text = "Micro Dungeon   Floor \(floor)/3   HP \(hp)/\(maxHP)   Armor \(armor)   Score \(score)   \(upgradeText)"
 
         for y in 0..<rows {
             for x in 0..<cols {
@@ -593,6 +684,16 @@ final class DungeonScene: BaseGameScene {
             let node = SKShapeNode(circleOfRadius: 11)
             node.fillColor = .gold
             node.strokeColor = .clear
+            node.position = pointFor(p)
+            node.name = "dungeon"
+            addChild(node)
+        }
+
+        for p in traps {
+            let node = SKShapeNode(rectOf: CGSize(width: 20, height: 20), cornerRadius: 4)
+            node.fillColor = SKColor(calibratedRed: 0.95, green: 0.36, blue: 0.12, alpha: 1)
+            node.strokeColor = .clear
+            node.zRotation = .pi / 4
             node.position = pointFor(p)
             node.name = "dungeon"
             addChild(node)
@@ -631,10 +732,47 @@ final class DungeonScene: BaseGameScene {
     private func restart() {
         isGameOver = false
         hp = 5
+        maxHP = 5
         floor = 1
         score = 0
+        armor = 0
+        relics = 0
+        upgrades.removeAll()
+        banner.text = ""
+        banner.alpha = 0
         children.filter { $0.zPosition >= 1000 }.forEach { $0.removeFromParent() }
         startFloor()
+    }
+
+    private func applyUpgrade() {
+        let choices = ["Iron Heart", "Guard Plate", "Relic Sense"].filter { !upgrades.contains($0) || $0 == "Guard Plate" }
+        let upgrade = choices.randomElement() ?? "Guard Plate"
+        upgrades.append(upgrade)
+        switch upgrade {
+        case "Iron Heart":
+            maxHP += 1
+            hp = maxHP
+        case "Relic Sense":
+            relics += 1
+            hp = min(maxHP, hp + 1)
+        default:
+            armor += 2
+        }
+        flashBanner("Upgrade gained: \(upgrade)")
+    }
+
+    private func takeDamage() {
+        if armor > 0 {
+            armor -= 1
+        } else {
+            hp -= 1
+        }
+    }
+
+    private func flashBanner(_ text: String) {
+        banner.text = text
+        banner.alpha = 1
+        banner.run(.sequence([.wait(forDuration: 0.85), .fadeOut(withDuration: 0.25)]))
     }
 }
 
@@ -653,15 +791,21 @@ final class StockScene: BaseGameScene {
     private var price: Double = 50
     private var day: Int = 1
     private var eventTimer: TimeInterval = 2.0
+    private var decisionTimer: TimeInterval = 0
+    private var decisionMade = true
+    private var bestAction = "H"
+    private var streak = 0
     private var lastUpdateTime: TimeInterval = 0
     private var priceLine = SKShapeNode()
     private var history: [Double] = [50]
     private let news = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private let portfolio = SKLabelNode(fontNamed: "AvenirNext-Bold")
+    private let pressure = SKLabelNode(fontNamed: "AvenirNext-Bold")
+    private let timerBar = SKSpriteNode(color: .gold, size: CGSize(width: 320, height: 10))
 
     override func didMove(to view: SKView) {
         super.didMove(to: view)
-        help.text = "B: buy   S: sell   R: restart   Esc: menu"
+        help.text = "B: buy   S: sell   H: hold   R: restart   Esc: menu"
         news.fontSize = 22
         news.fontColor = .gold
         news.verticalAlignmentMode = .center
@@ -673,6 +817,16 @@ final class StockScene: BaseGameScene {
         portfolio.verticalAlignmentMode = .center
         portfolio.position = CGPoint(x: size.width / 2, y: 74)
         addChild(portfolio)
+
+        pressure.fontSize = 16
+        pressure.fontColor = SKColor.bone.withAlphaComponent(0.72)
+        pressure.verticalAlignmentMode = .center
+        pressure.position = CGPoint(x: size.width / 2, y: 112)
+        addChild(pressure)
+
+        timerBar.anchorPoint = CGPoint(x: 0, y: 0.5)
+        timerBar.position = CGPoint(x: size.width / 2 - 160, y: 130)
+        addChild(timerBar)
         drawMarket()
         announce("Opening bell. Don't blow up.")
     }
@@ -687,13 +841,9 @@ final class StockScene: BaseGameScene {
             super.keyDown(with: event)
             return
         }
-        if key == "b" && cash >= price {
-            shares += 1
-            cash -= price
-        }
-        if key == "s" && shares > 0 {
-            shares -= 1
-            cash += price
+        if key == "b" || key == "s" || key == "h" {
+            handleDecision(key.uppercased())
+            return
         }
         updateText()
         super.keyDown(with: event)
@@ -706,9 +856,20 @@ final class StockScene: BaseGameScene {
         if isGameOver { return }
 
         eventTimer -= dt
+        if !decisionMade {
+            decisionTimer -= dt
+            timerBar.xScale = max(0.02, CGFloat(decisionTimer / 1.8))
+            if decisionTimer <= 0 {
+                cash = max(0, cash - 25)
+                streak = 0
+                decisionMade = true
+                announce("Hesitated. Fees and slippage hit your account.")
+                updateText()
+            }
+        }
         if eventTimer <= 0 {
             nextEvent()
-            eventTimer = 1.35
+            eventTimer = 1.80
         }
         if cash + Double(shares) * price <= 0 {
             showEnd(title: "Margin Called", detail: "Your portfolio hit zero.", color: SKColor(calibratedRed: 0.95, green: 0.18, blue: 0.16, alpha: 1))
@@ -721,17 +882,23 @@ final class StockScene: BaseGameScene {
 
     private func nextEvent() {
         day += 1
-        let events: [(String, Double)] = [
-            ("AI hype sends risk assets flying", 1.20),
-            ("Rate-cut rumor boosts the tape", 1.13),
-            ("Bad earnings guidance leaks", 0.76),
-            ("Short squeeze detonates", 1.32),
-            ("Regulator opens investigation", 0.70),
-            ("Influencer says this is the future", 1.09),
-            ("Liquidity dries up before lunch", 0.86),
-            ("Surprise partnership announced", 1.18)
+        let events: [(String, Double, String)] = [
+            ("AI hype sends risk assets flying", 1.20, "B"),
+            ("Rate-cut rumor boosts the tape", 1.13, "B"),
+            ("Bad earnings guidance leaks", 0.76, "S"),
+            ("Short squeeze detonates", 1.32, "B"),
+            ("Regulator opens investigation", 0.70, "S"),
+            ("Influencer says this is the future", 1.09, "H"),
+            ("Liquidity dries up before lunch", 0.86, "S"),
+            ("Surprise partnership announced", 1.18, "B"),
+            ("Rumor mill gets noisy and directionless", 1.00, "H"),
+            ("Flash crash reverses into a rip", 1.06, "H")
         ]
         let event = events.randomElement()!
+        bestAction = event.2
+        decisionTimer = 1.8
+        decisionMade = false
+        timerBar.xScale = 1
         price = max(5, min(180, price * event.1 + Double.random(in: -4...4)))
         history.append(price)
         if history.count > 28 { history.removeFirst() }
@@ -774,8 +941,9 @@ final class StockScene: BaseGameScene {
 
     private func updateText() {
         let value = cash + Double(shares) * price
-        hud.text = "Stock Market Survivor   Day \(min(day, 30))/30   Price $\(Int(price))"
+        hud.text = "Stock Market Survivor   Day \(min(day, 30))/30   Price $\(Int(price))   Streak \(streak)"
         portfolio.text = "Cash $\(Int(cash))   Shares \(shares)   Portfolio $\(Int(value))"
+        pressure.text = decisionMade ? "Waiting for the next market shock..." : "React now: buy, sell, or hold"
     }
 
     private func restart() {
@@ -786,10 +954,48 @@ final class StockScene: BaseGameScene {
         price = 50
         day = 1
         eventTimer = 1.0
+        decisionTimer = 0
+        decisionMade = true
+        bestAction = "H"
+        streak = 0
         lastUpdateTime = 0
         history = [50]
+        timerBar.xScale = 1
         drawMarket()
         announce("Opening bell. Don't blow up.")
+    }
+
+    private func handleDecision(_ action: String) {
+        switch action {
+        case "B":
+            let quantity = max(1, min(3, Int(cash / price)))
+            if quantity > 0 && cash >= price {
+                shares += quantity
+                cash -= Double(quantity) * price
+            }
+        case "S":
+            let quantity = max(1, min(3, shares))
+            if shares > 0 {
+                shares -= quantity
+                cash += Double(quantity) * price
+            }
+        default:
+            break
+        }
+
+        if !decisionMade {
+            decisionMade = true
+            if action == bestAction {
+                streak += 1
+                cash += Double(12 + streak * 4)
+                announce("Good read. Streak \(streak) bonus booked.")
+            } else {
+                streak = 0
+                cash = max(0, cash - 18)
+                announce("Wrong read. Slippage clipped your account.")
+            }
+        }
+        updateText()
     }
 }
 
