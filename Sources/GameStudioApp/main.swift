@@ -54,6 +54,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             scene = DungeonScene(size: skView.bounds.size)
         case .stocks:
             scene = StockScene(size: skView.bounds.size)
+        case .pong:
+            scene = PongScene(size: skView.bounds.size)
         }
         scene.scaleMode = .resizeFill
         scene.onExit = { [weak self] in
@@ -76,12 +78,14 @@ enum GameKind: String, CaseIterable {
     case samurai
     case dungeon
     case stocks
+    case pong
 
     var title: String {
         switch self {
         case .samurai: return "One Button Samurai"
         case .dungeon: return "Micro Dungeon"
         case .stocks: return "Stock Market Survivor"
+        case .pong: return "Neon Pong Royale"
         }
     }
 
@@ -90,6 +94,7 @@ enum GameKind: String, CaseIterable {
         case .samurai: return "Dash through raiders with one perfectly timed strike."
         case .dungeon: return "Clear tiny tactical floors before your hearts run out."
         case .stocks: return "Trade through chaos and survive the closing bell."
+        case .pong: return "Win a first-to-seven neon duel against a ruthless AI."
         }
     }
 
@@ -98,6 +103,7 @@ enum GameKind: String, CaseIterable {
         case .samurai: return NSColor(calibratedRed: 0.95, green: 0.18, blue: 0.16, alpha: 1)
         case .dungeon: return NSColor(calibratedRed: 0.15, green: 0.78, blue: 0.49, alpha: 1)
         case .stocks: return NSColor(calibratedRed: 0.16, green: 0.55, blue: 0.95, alpha: 1)
+        case .pong: return NSColor(calibratedRed: 0.90, green: 0.20, blue: 0.95, alpha: 1)
         }
     }
 }
@@ -151,10 +157,12 @@ final class MenuScene: SKScene {
         subtitle.position = CGPoint(x: size.width / 2, y: size.height - 128)
         addChild(subtitle)
 
-        let cardWidth = min(292, max(240, (size.width - 130) / 3))
+        let columns = GameKind.allCases.count
+        let cardWidth = min(230, max(190, (size.width - 120) / CGFloat(columns)))
         let cardSize = CGSize(width: cardWidth, height: 270)
-        let spacing = min(34, max(18, (size.width - cardWidth * 3 - 80) / 2))
-        let startX = size.width / 2 - cardWidth - spacing
+        let spacing = min(24, max(14, (size.width - cardWidth * CGFloat(columns) - 80) / CGFloat(max(1, columns - 1))))
+        let totalWidth = cardWidth * CGFloat(columns) + spacing * CGFloat(columns - 1)
+        let startX = size.width / 2 - totalWidth / 2 + cardWidth / 2
 
         for (index, game) in GameKind.allCases.enumerated() {
             let x = startX + CGFloat(index) * (cardWidth + spacing)
@@ -209,6 +217,7 @@ final class MenuScene: SKScene {
         case .samurai: return "!"
         case .dungeon: return "#"
         case .stocks: return "$"
+        case .pong: return "*"
         }
     }
 
@@ -781,5 +790,191 @@ final class StockScene: BaseGameScene {
         history = [50]
         drawMarket()
         announce("Opening bell. Don't blow up.")
+    }
+}
+
+final class PongScene: BaseGameScene {
+    private let player = SKShapeNode(rectOf: CGSize(width: 18, height: 112), cornerRadius: 7)
+    private let ai = SKShapeNode(rectOf: CGSize(width: 18, height: 112), cornerRadius: 7)
+    private let ball = SKShapeNode(circleOfRadius: 13)
+    private let playerScoreLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+    private let aiScoreLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+    private var playerScore = 0
+    private var aiScore = 0
+    private var ballVelocity = CGVector(dx: 430, dy: 210)
+    private var moveDirection: CGFloat = 0
+    private var lastUpdateTime: TimeInterval = 0
+
+    override func didMove(to view: SKView) {
+        super.didMove(to: view)
+        help.text = "W/S or arrows: move   R: restart   Esc: menu"
+        hud.text = "Neon Pong Royale   First to 7"
+        backgroundColor = SKColor(calibratedRed: 0.03, green: 0.04, blue: 0.07, alpha: 1)
+
+        player.fillColor = .bone
+        player.strokeColor = SKColor(calibratedRed: 0.90, green: 0.20, blue: 0.95, alpha: 1)
+        player.lineWidth = 4
+        player.position = CGPoint(x: 76, y: size.height / 2)
+        addChild(player)
+
+        ai.fillColor = SKColor(calibratedRed: 0.90, green: 0.20, blue: 0.95, alpha: 1)
+        ai.strokeColor = .bone
+        ai.lineWidth = 4
+        ai.position = CGPoint(x: size.width - 76, y: size.height / 2)
+        addChild(ai)
+
+        ball.fillColor = .gold
+        ball.strokeColor = .clear
+        ball.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        addChild(ball)
+
+        for y in stride(from: 112, through: size.height - 112, by: 44) {
+            let dash = roundedRect(size: CGSize(width: 8, height: 22), radius: 3, color: SKColor.bone.withAlphaComponent(0.26))
+            dash.position = CGPoint(x: size.width / 2, y: y)
+            dash.name = "pong"
+            addChild(dash)
+        }
+
+        configureScoreLabel(playerScoreLabel, x: size.width * 0.36)
+        configureScoreLabel(aiScoreLabel, x: size.width * 0.64)
+        updateScoreText()
+        serve(towardPlayer: false)
+    }
+
+    override func didChangeSize(_ oldSize: CGSize) {
+        super.didChangeSize(oldSize)
+        ai.position.x = size.width - 76
+        playerScoreLabel.position = CGPoint(x: size.width * 0.36, y: size.height - 102)
+        aiScoreLabel.position = CGPoint(x: size.width * 0.64, y: size.height - 102)
+    }
+
+    override func keyDown(with event: NSEvent) {
+        let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
+        if key == "r" {
+            restart()
+            return
+        }
+        if isGameOver {
+            super.keyDown(with: event)
+            return
+        }
+        if key == "w" || event.keyCode == 126 {
+            moveDirection = 1
+        } else if key == "s" || event.keyCode == 125 {
+            moveDirection = -1
+        }
+        super.keyDown(with: event)
+    }
+
+    override func keyUp(with event: NSEvent) {
+        let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
+        if key == "w" || key == "s" || event.keyCode == 126 || event.keyCode == 125 {
+            moveDirection = 0
+        }
+    }
+
+    override func update(_ currentTime: TimeInterval) {
+        if lastUpdateTime == 0 { lastUpdateTime = currentTime }
+        let dt = min(currentTime - lastUpdateTime, 0.033)
+        lastUpdateTime = currentTime
+        if isGameOver { return }
+
+        player.position.y = clamped(player.position.y + moveDirection * 520 * CGFloat(dt), min: 96, max: size.height - 96)
+
+        let aiTarget = ball.position.y + CGFloat.random(in: -18...18)
+        let aiDelta = clamped(aiTarget - ai.position.y, min: -430 * CGFloat(dt), max: 430 * CGFloat(dt))
+        ai.position.y = clamped(ai.position.y + aiDelta, min: 96, max: size.height - 96)
+
+        ball.position.x += ballVelocity.dx * CGFloat(dt)
+        ball.position.y += ballVelocity.dy * CGFloat(dt)
+
+        if ball.position.y > size.height - 34 || ball.position.y < 34 {
+            ballVelocity.dy *= -1
+            ball.position.y = clamped(ball.position.y, min: 34, max: size.height - 34)
+            pulse(ball, color: .bone)
+        }
+
+        if ball.frame.intersects(player.frame), ballVelocity.dx < 0 {
+            rebound(from: player, direction: 1)
+        }
+        if ball.frame.intersects(ai.frame), ballVelocity.dx > 0 {
+            rebound(from: ai, direction: -1)
+        }
+
+        if ball.position.x < -30 {
+            aiScore += 1
+            pointScored(towardPlayer: true)
+        } else if ball.position.x > size.width + 30 {
+            playerScore += 1
+            pointScored(towardPlayer: false)
+        }
+    }
+
+    private func configureScoreLabel(_ node: SKLabelNode, x: CGFloat) {
+        node.fontSize = 54
+        node.fontColor = SKColor.bone.withAlphaComponent(0.36)
+        node.verticalAlignmentMode = .center
+        node.position = CGPoint(x: x, y: size.height - 102)
+        addChild(node)
+    }
+
+    private func rebound(from paddle: SKShapeNode, direction: CGFloat) {
+        let hitOffset = (ball.position.y - paddle.position.y) / 56
+        let speed = min(760, hypot(ballVelocity.dx, ballVelocity.dy) + 32)
+        ballVelocity.dx = direction * speed
+        ballVelocity.dy = clamped(hitOffset, min: -1.2, max: 1.2) * 360
+        pulse(paddle, color: .gold)
+    }
+
+    private func pointScored(towardPlayer: Bool) {
+        updateScoreText()
+        if playerScore >= 7 {
+            showEnd(title: "Royale Won", detail: "You beat the neon table \(playerScore)-\(aiScore).")
+            return
+        }
+        if aiScore >= 7 {
+            showEnd(title: "AI Takes The Table", detail: "Final score: \(playerScore)-\(aiScore)", color: SKColor(calibratedRed: 0.90, green: 0.20, blue: 0.95, alpha: 1))
+            return
+        }
+        serve(towardPlayer: towardPlayer)
+    }
+
+    private func serve(towardPlayer: Bool) {
+        ball.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        let direction: CGFloat = towardPlayer ? -1 : 1
+        ballVelocity = CGVector(dx: direction * CGFloat.random(in: 390...450), dy: CGFloat.random(in: -240...240))
+    }
+
+    private func updateScoreText() {
+        playerScoreLabel.text = "\(playerScore)"
+        aiScoreLabel.text = "\(aiScore)"
+    }
+
+    private func pulse(_ node: SKNode, color: SKColor) {
+        let flash = SKShapeNode(circleOfRadius: 24)
+        flash.fillColor = color.withAlphaComponent(0.24)
+        flash.strokeColor = .clear
+        flash.position = node.position
+        flash.zPosition = -1
+        addChild(flash)
+        flash.run(.sequence([
+            .group([.scale(to: 2.4, duration: 0.18), .fadeOut(withDuration: 0.18)]),
+            .removeFromParent()
+        ]))
+    }
+
+    private func restart() {
+        children.filter { $0.zPosition >= 1000 }.forEach { $0.removeFromParent() }
+        isGameOver = false
+        playerScore = 0
+        aiScore = 0
+        player.position = CGPoint(x: 76, y: size.height / 2)
+        ai.position = CGPoint(x: size.width - 76, y: size.height / 2)
+        updateScoreText()
+        serve(towardPlayer: false)
+    }
+
+    private func clamped(_ value: CGFloat, min minValue: CGFloat, max maxValue: CGFloat) -> CGFloat {
+        Swift.max(minValue, Swift.min(maxValue, value))
     }
 }

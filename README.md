@@ -5,6 +5,7 @@ A native macOS SpriteKit arcade app containing three small portfolio games:
 - **One Button Samurai**: press Space to dash through incoming enemies. Win at 30 cuts.
 - **Micro Dungeon**: use WASD or arrow keys to clear three tactical dungeon floors.
 - **Stock Market Survivor**: buy and sell through 30 days of chaotic market events.
+- **Neon Pong Royale**: use W/S or arrow keys to win a first-to-seven paddle duel.
 
 ## Why This Exists
 
@@ -43,3 +44,4 @@ dist/Nashy Game Studio Arcade.app
 - One Button Samurai: `Space`.
 - Micro Dungeon: `WASD` or arrow keys.
 - Stock Market Survivor: `B` to buy, `S` to sell.
+- Neon Pong Royale: `W/S` or arrow keys.
