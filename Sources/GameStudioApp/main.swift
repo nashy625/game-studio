@@ -58,6 +58,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             scene = PongScene(size: skView.bounds.size)
         case .campus:
             scene = CampusDashScene(size: skView.bounds.size)
+        case .brickforge:
+            scene = BrickforgeScene(size: skView.bounds.size)
+        case .starforge:
+            scene = StarforgeCourierScene(size: skView.bounds.size)
+        case .rhythm:
+            scene = RhythmForgeScene(size: skView.bounds.size)
         }
         scene.scaleMode = .resizeFill
         scene.onExit = { [weak self] in
@@ -82,6 +88,9 @@ enum GameKind: String, CaseIterable {
     case stocks
     case pong
     case campus
+    case brickforge
+    case starforge
+    case rhythm
 
     var title: String {
         switch self {
@@ -90,6 +99,9 @@ enum GameKind: String, CaseIterable {
         case .stocks: return "Stock Market Survivor"
         case .pong: return "Neon Pong Royale"
         case .campus: return "Campus Dash"
+        case .brickforge: return "Brickforge Breakout"
+        case .starforge: return "Starforge Courier"
+        case .rhythm: return "Rhythm Forge"
         }
     }
 
@@ -100,6 +112,9 @@ enum GameKind: String, CaseIterable {
         case .stocks: return "Trade through chaos and survive the closing bell."
         case .pong: return "Win a first-to-seven neon duel against a ruthless AI."
         case .campus: return "Sprint to class while dodging bikes and collecting notes."
+        case .brickforge: return "Shatter neon foundry bricks with heat, shields, and multiball."
+        case .starforge: return "Haul cargo through asteroid traffic before oxygen runs out."
+        case .rhythm: return "Hit the forge lanes on beat and keep the combo alive."
         }
     }
 
@@ -110,6 +125,9 @@ enum GameKind: String, CaseIterable {
         case .stocks: return NSColor(calibratedRed: 0.16, green: 0.55, blue: 0.95, alpha: 1)
         case .pong: return NSColor(calibratedRed: 0.90, green: 0.20, blue: 0.95, alpha: 1)
         case .campus: return NSColor(calibratedRed: 0.98, green: 0.63, blue: 0.12, alpha: 1)
+        case .brickforge: return NSColor(calibratedRed: 1.00, green: 0.36, blue: 0.18, alpha: 1)
+        case .starforge: return NSColor(calibratedRed: 0.25, green: 0.68, blue: 1.00, alpha: 1)
+        case .rhythm: return NSColor(calibratedRed: 0.72, green: 0.36, blue: 1.00, alpha: 1)
         }
     }
 
@@ -120,6 +138,9 @@ enum GameKind: String, CaseIterable {
         case .stocks: return "ARCADE / STRATEGY"
         case .pong: return "SPORTS / ARCADE"
         case .campus: return "DODGER / ROUTE RUN"
+        case .brickforge: return "ACTION / BREAKOUT"
+        case .starforge: return "SPACE / DELIVERY"
+        case .rhythm: return "RHYTHM / TIMING"
         }
     }
 
@@ -130,12 +151,15 @@ enum GameKind: String, CaseIterable {
         case .stocks: return "Beat the market shock."
         case .pong: return "Neon table duel."
         case .campus: return "Make it before class."
+        case .brickforge: return "Clear the heat wall."
+        case .starforge: return "Deliver under pressure."
+        case .rhythm: return "Strike on the beat."
         }
     }
 
     var releaseStatus: String {
         switch self {
-        case .samurai, .dungeon, .stocks: return "FLAGSHIP"
+        case .samurai, .dungeon, .stocks, .brickforge, .starforge, .rhythm: return "FLAGSHIP"
         case .pong, .campus: return "ARCADE"
         }
     }
@@ -147,6 +171,9 @@ enum GameKind: String, CaseIterable {
         case .stocks: return "5 MIN RUN"
         case .pong: return "FIRST TO 7"
         case .campus: return "2 MIN SPRINT"
+        case .brickforge: return "3 STAGES"
+        case .starforge: return "60 SEC ROUTE"
+        case .rhythm: return "32 BEAT SET"
         }
     }
 }
@@ -174,6 +201,10 @@ func roundedRect(size: CGSize, radius: CGFloat, color: SKColor, stroke: SKColor?
     node.strokeColor = stroke ?? color
     node.lineWidth = lineWidth
     return node
+}
+
+func clamp(_ value: CGFloat, _ minValue: CGFloat, _ maxValue: CGFloat) -> CGFloat {
+    Swift.max(minValue, Swift.min(maxValue, value))
 }
 
 final class MenuScene: SKScene {
@@ -212,10 +243,10 @@ final class MenuScene: SKScene {
         let columns = min(3, games.count)
         let rows = Int(ceil(Double(games.count) / Double(columns)))
         let cardWidth = min(286, max(210, (size.width - 120) / CGFloat(columns)))
-        let cardHeight = rows > 1 ? CGFloat(205) : CGFloat(270)
+        let cardHeight = rows > 2 ? CGFloat(150) : (rows > 1 ? CGFloat(205) : CGFloat(270))
         let cardSize = CGSize(width: cardWidth, height: cardHeight)
         let spacingX = min(30, max(18, (size.width - cardWidth * CGFloat(columns) - 80) / CGFloat(max(1, columns - 1))))
-        let spacingY: CGFloat = 22
+        let spacingY: CGFloat = rows > 2 ? 16 : 22
         let totalWidth = cardWidth * CGFloat(columns) + spacingX * CGFloat(columns - 1)
         let totalHeight = cardHeight * CGFloat(rows) + spacingY * CGFloat(rows - 1)
         let startX = size.width / 2 - totalWidth / 2 + cardWidth / 2
@@ -294,7 +325,7 @@ final class MenuScene: SKScene {
 
     private func drawStoreStats() {
         let stats = [
-            "5 playable games",
+            "8 playable games",
             "Native macOS build",
             "Capsule shelf UI",
             "Release-track prototypes"
@@ -381,6 +412,38 @@ final class MenuScene: SKScene {
             let note = roundedRect(size: CGSize(width: 42, height: 30), radius: 4, color: .gold.withAlphaComponent(0.72), stroke: .clear, lineWidth: 0)
             note.position = CGPoint(x: center.x, y: center.y + 6)
             addChild(note)
+        case .brickforge:
+            for row in 0..<3 {
+                for col in 0..<6 {
+                    let brick = roundedRect(size: CGSize(width: 26, height: 12), radius: 3, color: row == 1 ? .gold.withAlphaComponent(0.55) : game.accent.withAlphaComponent(0.62), stroke: .clear, lineWidth: 0)
+                    brick.position = CGPoint(x: center.x - 66 + CGFloat(col) * 26, y: baseY + 8 + CGFloat(row) * 16)
+                    addChild(brick)
+                }
+            }
+        case .starforge:
+            let ship = SKShapeNode(path: trianglePath(size: 42))
+            ship.fillColor = SKColor.white.withAlphaComponent(0.68)
+            ship.strokeColor = .clear
+            ship.position = center
+            addChild(ship)
+            for offset in [-54, 52] {
+                let asteroid = SKShapeNode(circleOfRadius: 13)
+                asteroid.fillColor = game.accent.withAlphaComponent(0.46)
+                asteroid.strokeColor = SKColor.white.withAlphaComponent(0.20)
+                asteroid.position = CGPoint(x: center.x + CGFloat(offset), y: center.y + CGFloat.random(in: -18...18))
+                addChild(asteroid)
+            }
+        case .rhythm:
+            for col in 0..<4 {
+                let lane = roundedRect(size: CGSize(width: 18, height: artSize.height * 0.76), radius: 8, color: SKColor.white.withAlphaComponent(0.12), stroke: game.accent.withAlphaComponent(0.24), lineWidth: 1)
+                lane.position = CGPoint(x: center.x - 45 + CGFloat(col) * 30, y: center.y)
+                addChild(lane)
+                let note = SKShapeNode(circleOfRadius: 8)
+                note.fillColor = col % 2 == 0 ? game.accent : .gold
+                note.strokeColor = .clear
+                note.position = CGPoint(x: lane.position.x, y: center.y + CGFloat([-18, 4, 22, -6][col]))
+                addChild(note)
+            }
         }
     }
 
@@ -416,7 +479,19 @@ final class MenuScene: SKScene {
         case .stocks: return "$"
         case .pong: return "*"
         case .campus: return "@"
+        case .brickforge: return "%"
+        case .starforge: return "^"
+        case .rhythm: return "&"
         }
+    }
+
+    private func trianglePath(size: CGFloat) -> CGPath {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 0, y: size / 2))
+        path.addLine(to: CGPoint(x: -size / 2, y: -size / 2))
+        path.addLine(to: CGPoint(x: size / 2, y: -size / 2))
+        path.closeSubpath()
+        return path
     }
 
     private func wrapped(_ text: String, max: Int) -> [String] {
@@ -491,6 +566,36 @@ class BaseGameScene: SKScene {
         exitNode.position = CGPoint(x: size.width / 2, y: size.height / 2 - 46)
         exitNode.zPosition = 1001
         addChild(exitNode)
+    }
+
+    func flashText(_ text: String, color: SKColor = .gold) {
+        let node = label(text, size: 24, color: color)
+        node.position = CGPoint(x: size.width / 2, y: size.height - 92)
+        node.zPosition = 900
+        addChild(node)
+        node.run(.sequence([
+            .group([.moveBy(x: 0, y: 18, duration: 0.55), .fadeOut(withDuration: 0.55)]),
+            .removeFromParent()
+        ]))
+    }
+
+    func spark(at point: CGPoint, color: SKColor) {
+        for _ in 0..<10 {
+            let dot = SKShapeNode(circleOfRadius: CGFloat.random(in: 2.5...6.5))
+            dot.fillColor = color
+            dot.strokeColor = .clear
+            dot.position = point
+            dot.zPosition = 500
+            addChild(dot)
+            dot.run(.sequence([
+                .group([
+                    .moveBy(x: CGFloat.random(in: -42...42), y: CGFloat.random(in: -42...42), duration: 0.28),
+                    .fadeOut(withDuration: 0.28),
+                    .scale(to: 0.25, duration: 0.28)
+                ]),
+                .removeFromParent()
+            ]))
+        }
     }
 }
 
@@ -1380,6 +1485,531 @@ final class PongScene: BaseGameScene {
 
     private func clamped(_ value: CGFloat, min minValue: CGFloat, max maxValue: CGFloat) -> CGFloat {
         Swift.max(minValue, Swift.min(maxValue, value))
+    }
+}
+
+final class BrickforgeScene: BaseGameScene {
+    private let paddle = SKShapeNode(rectOf: CGSize(width: 124, height: 18), cornerRadius: 8)
+    private var balls: [SKShapeNode] = []
+    private var bricks: [SKShapeNode] = []
+    private var keysDown = Set<UInt16>()
+    private var lastUpdateTime: TimeInterval = 0
+    private var stage = 1
+    private var lives = 3
+    private var score = 0
+    private var heat = 0
+
+    override func didMove(to view: SKView) {
+        super.didMove(to: view)
+        backgroundColor = SKColor(calibratedRed: 0.06, green: 0.04, blue: 0.05, alpha: 1)
+        help.text = "A/D or arrows: move   Space: heat shield   R: restart   Esc: menu"
+        paddle.fillColor = .bone
+        paddle.strokeColor = SKColor(calibratedRed: 1.00, green: 0.36, blue: 0.18, alpha: 1)
+        paddle.lineWidth = 4
+        paddle.position = CGPoint(x: size.width / 2, y: 86)
+        addChild(paddle)
+        startStage()
+    }
+
+    override func keyDown(with event: NSEvent) {
+        let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
+        if key == "r" {
+            restart()
+            return
+        }
+        if isGameOver {
+            super.keyDown(with: event)
+            return
+        }
+        keysDown.insert(event.keyCode)
+        if event.keyCode == 49 && heat >= 3 {
+            heat = 0
+            splitBall()
+            flashText("HEAT SPLIT")
+        }
+        super.keyDown(with: event)
+    }
+
+    override func keyUp(with event: NSEvent) {
+        keysDown.remove(event.keyCode)
+    }
+
+    override func update(_ currentTime: TimeInterval) {
+        if lastUpdateTime == 0 { lastUpdateTime = currentTime }
+        let dt = min(currentTime - lastUpdateTime, 0.033)
+        lastUpdateTime = currentTime
+        if isGameOver { return }
+
+        let direction: CGFloat = (keysDown.contains(2) || keysDown.contains(123) ? -1 : 0) + (keysDown.contains(0) || keysDown.contains(124) ? 1 : 0)
+        paddle.position.x = clamp(paddle.position.x + direction * 620 * CGFloat(dt), 86, size.width - 86)
+
+        for ball in balls {
+            let vx = ball.userData?["vx"] as? CGFloat ?? 0
+            let vy = ball.userData?["vy"] as? CGFloat ?? 0
+            ball.position.x += vx * CGFloat(dt)
+            ball.position.y += vy * CGFloat(dt)
+
+            if ball.position.x < 18 || ball.position.x > size.width - 18 {
+                ball.userData?["vx"] = -vx
+                ball.position.x = clamp(ball.position.x, 18, size.width - 18)
+                spark(at: ball.position, color: .bone)
+            }
+            if ball.position.y > size.height - 70 {
+                ball.userData?["vy"] = -abs(vy)
+                spark(at: ball.position, color: .bone)
+            }
+            if ball.frame.intersects(paddle.frame), vy < 0 {
+                let offset = (ball.position.x - paddle.position.x) / 62
+                ball.userData?["vx"] = clamp(offset, -1.25, 1.25) * 390
+                ball.userData?["vy"] = abs(vy) + 18
+                spark(at: ball.position, color: .gold)
+            }
+            if ball.position.y < -24 {
+                ball.removeFromParent()
+            }
+        }
+        balls.removeAll { $0.parent == nil }
+        if balls.isEmpty {
+            lives -= 1
+            if lives <= 0 {
+                showEnd(title: "Forge Cooled", detail: "Stage \(stage), score \(score)", color: SKColor(calibratedRed: 1.00, green: 0.36, blue: 0.18, alpha: 1))
+                return
+            }
+            spawnBall()
+        }
+
+        for brick in bricks where brick.parent != nil {
+            for ball in balls where ball.frame.intersects(brick.frame) {
+                brick.removeFromParent()
+                ball.userData?["vy"] = -(ball.userData?["vy"] as? CGFloat ?? 0)
+                score += 25 * stage
+                heat = min(3, heat + 1)
+                spark(at: brick.position, color: SKColor(calibratedRed: 1.00, green: 0.36, blue: 0.18, alpha: 1))
+                break
+            }
+        }
+        bricks.removeAll { $0.parent == nil }
+        if bricks.isEmpty {
+            if stage >= 3 {
+                showEnd(title: "Forge Mastered", detail: "All stages cleared. Score \(score)")
+                return
+            }
+            stage += 1
+            startStage()
+        }
+        updateHUD()
+    }
+
+    private func startStage() {
+        children.filter { $0.name == "brickforge" }.forEach { $0.removeFromParent() }
+        balls.forEach { $0.removeFromParent() }
+        bricks.removeAll()
+        balls.removeAll()
+        let rows = 3 + stage
+        let cols = 9
+        let brickW: CGFloat = 82
+        let brickH: CGFloat = 24
+        let startX = size.width / 2 - CGFloat(cols - 1) * (brickW + 8) / 2
+        let startY = size.height - 138
+        for row in 0..<rows {
+            for col in 0..<cols {
+                let brick = roundedRect(size: CGSize(width: brickW, height: brickH), radius: 5, color: row % 2 == 0 ? SKColor(calibratedRed: 1.00, green: 0.36, blue: 0.18, alpha: 1) : .gold, stroke: SKColor.white.withAlphaComponent(0.12), lineWidth: 1)
+                brick.position = CGPoint(x: startX + CGFloat(col) * (brickW + 8), y: startY - CGFloat(row) * (brickH + 10))
+                brick.name = "brickforge"
+                addChild(brick)
+                bricks.append(brick)
+            }
+        }
+        spawnBall()
+        updateHUD()
+        flashText("STAGE \(stage)")
+    }
+
+    private func spawnBall() {
+        let ball = SKShapeNode(circleOfRadius: 12)
+        ball.fillColor = .bone
+        ball.strokeColor = .gold
+        ball.lineWidth = 3
+        ball.position = CGPoint(x: paddle.position.x, y: paddle.position.y + 44)
+        ball.userData = ["vx": CGFloat.random(in: -220...220), "vy": CGFloat(420 + stage * 35)]
+        ball.name = "brickforge"
+        addChild(ball)
+        balls.append(ball)
+    }
+
+    private func splitBall() {
+        guard let source = balls.first else { return }
+        for direction in [-1, 1] {
+            let ball = SKShapeNode(circleOfRadius: 10)
+            ball.fillColor = .gold
+            ball.strokeColor = .clear
+            ball.position = source.position
+            ball.userData = ["vx": CGFloat(direction * 300), "vy": CGFloat(390)]
+            ball.name = "brickforge"
+            addChild(ball)
+            balls.append(ball)
+        }
+    }
+
+    private func updateHUD() {
+        let heatText = String(repeating: "|", count: heat).padding(toLength: 3, withPad: ".", startingAt: 0)
+        hud.text = "Brickforge Breakout   Stage \(stage)/3   Lives \(lives)   Score \(score)   Heat \(heatText)"
+    }
+
+    private func restart() {
+        children.filter { $0.zPosition >= 1000 }.forEach { $0.removeFromParent() }
+        isGameOver = false
+        stage = 1
+        lives = 3
+        score = 0
+        heat = 0
+        lastUpdateTime = 0
+        startStage()
+    }
+}
+
+final class StarforgeCourierScene: BaseGameScene {
+    private let ship = SKShapeNode(path: {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 0, y: 24))
+        path.addLine(to: CGPoint(x: -18, y: -20))
+        path.addLine(to: CGPoint(x: 18, y: -20))
+        path.closeSubpath()
+        return path
+    }())
+    private let station = SKShapeNode(rectOf: CGSize(width: 108, height: 72), cornerRadius: 10)
+    private var asteroids: [SKShapeNode] = []
+    private var cargo: SKShapeNode?
+    private var keysDown = Set<UInt16>()
+    private var lastUpdateTime: TimeInterval = 0
+    private var asteroidTimer: TimeInterval = 0
+    private var timeLeft: TimeInterval = 60
+    private var deliveries = 0
+    private var shields = 3
+    private var holdingCargo = false
+    private var invulnerableTimer: TimeInterval = 0
+    private var score = 0
+
+    override func didMove(to view: SKView) {
+        super.didMove(to: view)
+        backgroundColor = SKColor(calibratedRed: 0.02, green: 0.04, blue: 0.08, alpha: 1)
+        help.text = "WASD/arrows: fly   collect cargo, deliver to station   R: restart   Esc: menu"
+        drawStarfield()
+        station.fillColor = SKColor(calibratedRed: 0.25, green: 0.68, blue: 1.00, alpha: 0.18)
+        station.strokeColor = SKColor(calibratedRed: 0.25, green: 0.68, blue: 1.00, alpha: 1)
+        station.lineWidth = 4
+        station.position = CGPoint(x: size.width - 110, y: size.height - 120)
+        addChild(station)
+        ship.fillColor = .bone
+        ship.strokeColor = SKColor(calibratedRed: 0.25, green: 0.68, blue: 1.00, alpha: 1)
+        ship.lineWidth = 4
+        ship.position = CGPoint(x: 120, y: 120)
+        addChild(ship)
+        spawnCargo()
+        updateHUD()
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.charactersIgnoringModifiers?.lowercased() == "r" {
+            restart()
+            return
+        }
+        keysDown.insert(event.keyCode)
+        super.keyDown(with: event)
+    }
+
+    override func keyUp(with event: NSEvent) {
+        keysDown.remove(event.keyCode)
+    }
+
+    override func update(_ currentTime: TimeInterval) {
+        if lastUpdateTime == 0 { lastUpdateTime = currentTime }
+        let dt = min(currentTime - lastUpdateTime, 0.033)
+        lastUpdateTime = currentTime
+        if isGameOver { return }
+
+        timeLeft -= dt
+        asteroidTimer -= dt
+        invulnerableTimer -= dt
+        moveShip(dt)
+        if asteroidTimer <= 0 {
+            spawnAsteroid()
+            asteroidTimer = max(0.28, 0.72 - Double(deliveries) * 0.035)
+        }
+        for asteroid in asteroids {
+            asteroid.position.x += (asteroid.userData?["vx"] as? CGFloat ?? -260) * CGFloat(dt)
+            asteroid.position.y += (asteroid.userData?["vy"] as? CGFloat ?? 0) * CGFloat(dt)
+            asteroid.zRotation += 1.4 * CGFloat(dt)
+            if asteroid.position.x < -80 {
+                asteroid.removeFromParent()
+            } else if invulnerableTimer <= 0 && asteroid.frame.intersects(ship.frame.insetBy(dx: 4, dy: 4)) {
+                hitAsteroid(asteroid)
+            }
+        }
+        asteroids.removeAll { $0.parent == nil }
+        if let cargo, !holdingCargo, cargo.frame.intersects(ship.frame) {
+            cargo.removeFromParent()
+            self.cargo = nil
+            holdingCargo = true
+            score += 50
+            flashText("CARGO SECURED")
+        }
+        if holdingCargo && ship.frame.intersects(station.frame) {
+            holdingCargo = false
+            deliveries += 1
+            score += 180 + deliveries * 20
+            flashText("DELIVERY \(deliveries)/6")
+            spawnCargo()
+        }
+        if deliveries >= 6 {
+            showEnd(title: "Route Complete", detail: "Six deliveries landed. Score \(score)")
+        } else if shields <= 0 {
+            showEnd(title: "Hull Breach", detail: "Deliveries: \(deliveries)/6", color: SKColor(calibratedRed: 0.95, green: 0.18, blue: 0.16, alpha: 1))
+        } else if timeLeft <= 0 {
+            showEnd(title: "Oxygen Gone", detail: "Deliveries: \(deliveries)/6   Score \(score)", color: SKColor(calibratedRed: 0.95, green: 0.18, blue: 0.16, alpha: 1))
+        }
+        updateHUD()
+    }
+
+    private func moveShip(_ dt: TimeInterval) {
+        var dx: CGFloat = 0
+        var dy: CGFloat = 0
+        if keysDown.contains(0) || keysDown.contains(123) { dx -= 1 }
+        if keysDown.contains(2) || keysDown.contains(124) { dx += 1 }
+        if keysDown.contains(13) || keysDown.contains(126) { dy += 1 }
+        if keysDown.contains(1) || keysDown.contains(125) { dy -= 1 }
+        let speed: CGFloat = holdingCargo ? 320 : 390
+        ship.position.x = clamp(ship.position.x + dx * speed * CGFloat(dt), 38, size.width - 38)
+        ship.position.y = clamp(ship.position.y + dy * speed * CGFloat(dt), 70, size.height - 70)
+        if dx != 0 || dy != 0 {
+            ship.zRotation = atan2(-dx, dy)
+        }
+        ship.alpha = invulnerableTimer > 0 ? 0.55 + 0.45 * sin(CGFloat(invulnerableTimer) * 28) : 1
+    }
+
+    private func spawnCargo() {
+        let node = roundedRect(size: CGSize(width: 30, height: 30), radius: 5, color: .gold, stroke: SKColor.white.withAlphaComponent(0.28), lineWidth: 2)
+        node.position = CGPoint(x: CGFloat.random(in: 120...(size.width - 240)), y: CGFloat.random(in: 120...(size.height - 180)))
+        node.zRotation = .pi / 4
+        addChild(node)
+        cargo = node
+    }
+
+    private func spawnAsteroid() {
+        let asteroid = SKShapeNode(circleOfRadius: CGFloat.random(in: 16...32))
+        asteroid.fillColor = SKColor(calibratedRed: 0.33, green: 0.36, blue: 0.40, alpha: 1)
+        asteroid.strokeColor = SKColor.white.withAlphaComponent(0.16)
+        asteroid.position = CGPoint(x: size.width + 50, y: CGFloat.random(in: 90...(size.height - 90)))
+        asteroid.userData = ["vx": CGFloat.random(in: -390 ... -220), "vy": CGFloat.random(in: -80...80)]
+        addChild(asteroid)
+        asteroids.append(asteroid)
+    }
+
+    private func hitAsteroid(_ asteroid: SKShapeNode) {
+        shields -= 1
+        invulnerableTimer = 1.1
+        asteroid.removeFromParent()
+        spark(at: ship.position, color: SKColor(calibratedRed: 0.25, green: 0.68, blue: 1.00, alpha: 1))
+    }
+
+    private func drawStarfield() {
+        for index in 0..<70 {
+            let star = SKShapeNode(circleOfRadius: CGFloat.random(in: 1...2.4))
+            star.fillColor = SKColor.white.withAlphaComponent(CGFloat.random(in: 0.15...0.50))
+            star.strokeColor = .clear
+            star.position = CGPoint(x: CGFloat.random(in: 20...(size.width - 20)), y: CGFloat.random(in: 70...(size.height - 40)))
+            star.name = "starforge"
+            addChild(star)
+            if index % 7 == 0 {
+                star.run(.repeatForever(.sequence([.fadeAlpha(to: 0.12, duration: Double.random(in: 0.5...1.2)), .fadeAlpha(to: 0.55, duration: Double.random(in: 0.5...1.2))])))
+            }
+        }
+    }
+
+    private func updateHUD() {
+        hud.text = "Starforge Courier   Deliveries \(deliveries)/6   Shields \(shields)   Cargo \(holdingCargo ? "ONBOARD" : "EMPTY")   Time \(Int(max(0, timeLeft)))   Score \(score)"
+    }
+
+    private func restart() {
+        children.filter { $0.zPosition >= 1000 || $0.name == "starforge" }.forEach { $0.removeFromParent() }
+        asteroids.forEach { $0.removeFromParent() }
+        cargo?.removeFromParent()
+        asteroids.removeAll()
+        isGameOver = false
+        deliveries = 0
+        shields = 3
+        holdingCargo = false
+        invulnerableTimer = 0
+        lastUpdateTime = 0
+        asteroidTimer = 0
+        timeLeft = 60
+        score = 0
+        ship.position = CGPoint(x: 120, y: 120)
+        drawStarfield()
+        spawnCargo()
+        updateHUD()
+    }
+}
+
+final class RhythmForgeScene: BaseGameScene {
+    private struct ForgeNote {
+        let lane: Int
+        let node: SKShapeNode
+    }
+
+    private var notes: [ForgeNote] = []
+    private let lanes: [CGFloat] = [-210, -70, 70, 210]
+    private var lastUpdateTime: TimeInterval = 0
+    private var spawnTimer: TimeInterval = 0.55
+    private var spawned = 0
+    private var hit = 0
+    private var missed = 0
+    private var combo = 0
+    private var bestCombo = 0
+    private var score = 0
+    private let targetY: CGFloat = 138
+    private let totalNotes = 32
+
+    override func didMove(to view: SKView) {
+        super.didMove(to: view)
+        backgroundColor = SKColor(calibratedRed: 0.05, green: 0.03, blue: 0.08, alpha: 1)
+        help.text = "A S D F: strike lanes   R: restart   Esc: menu"
+        drawLanes()
+        updateHUD()
+    }
+
+    override func keyDown(with event: NSEvent) {
+        let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
+        if key == "r" {
+            restart()
+            return
+        }
+        if isGameOver {
+            super.keyDown(with: event)
+            return
+        }
+        let laneMap = ["a": 0, "s": 1, "d": 2, "f": 3]
+        if let lane = laneMap[key] {
+            strike(lane)
+            return
+        }
+        super.keyDown(with: event)
+    }
+
+    override func update(_ currentTime: TimeInterval) {
+        if lastUpdateTime == 0 { lastUpdateTime = currentTime }
+        let dt = min(currentTime - lastUpdateTime, 0.033)
+        lastUpdateTime = currentTime
+        if isGameOver { return }
+
+        spawnTimer -= dt
+        if spawned < totalNotes && spawnTimer <= 0 {
+            spawnTimer = max(0.30, 0.54 - Double(spawned) * 0.006)
+            spawnNote()
+        }
+        for note in notes {
+            note.node.position.y -= 420 * CGFloat(dt)
+            note.node.zRotation += 2.2 * CGFloat(dt)
+            if note.node.position.y < targetY - 72 {
+                note.node.removeFromParent()
+                missed += 1
+                combo = 0
+                flashLane(note.lane, color: SKColor(calibratedRed: 0.95, green: 0.18, blue: 0.16, alpha: 1))
+            }
+        }
+        notes.removeAll { $0.node.parent == nil }
+        if spawned >= totalNotes && notes.isEmpty {
+            let accuracy = Int((Double(hit) / Double(totalNotes)) * 100)
+            showEnd(title: accuracy >= 82 ? "Encore Cleared" : "Set Complete", detail: "Accuracy \(accuracy)%   Best combo \(bestCombo)   Score \(score)", color: accuracy >= 82 ? .gold : SKColor(calibratedRed: 0.72, green: 0.36, blue: 1.00, alpha: 1))
+        }
+        updateHUD()
+    }
+
+    private func drawLanes() {
+        for (index, offset) in lanes.enumerated() {
+            let x = size.width / 2 + offset
+            let lane = roundedRect(size: CGSize(width: 92, height: size.height - 176), radius: 10, color: SKColor.white.withAlphaComponent(0.05), stroke: SKColor(calibratedRed: 0.72, green: 0.36, blue: 1.00, alpha: 0.22), lineWidth: 1)
+            lane.position = CGPoint(x: x, y: size.height / 2 - 18)
+            lane.name = "rhythm"
+            addChild(lane)
+
+            let target = roundedRect(size: CGSize(width: 82, height: 18), radius: 7, color: .gold.withAlphaComponent(0.30), stroke: .gold, lineWidth: 2)
+            target.position = CGPoint(x: x, y: targetY)
+            target.name = "rhythm"
+            addChild(target)
+
+            let key = label(["A", "S", "D", "F"][index], size: 20, color: .bone)
+            key.position = CGPoint(x: x, y: 92)
+            key.name = "rhythm"
+            addChild(key)
+        }
+    }
+
+    private func spawnNote() {
+        let lane = Int.random(in: 0..<lanes.count)
+        let note = SKShapeNode(rectOf: CGSize(width: 44, height: 44), cornerRadius: 8)
+        note.fillColor = lane % 2 == 0 ? SKColor(calibratedRed: 0.72, green: 0.36, blue: 1.00, alpha: 1) : .gold
+        note.strokeColor = SKColor.white.withAlphaComponent(0.24)
+        note.lineWidth = 2
+        note.position = CGPoint(x: size.width / 2 + lanes[lane], y: size.height - 92)
+        note.zRotation = .pi / 4
+        addChild(note)
+        notes.append(ForgeNote(lane: lane, node: note))
+        spawned += 1
+    }
+
+    private func strike(_ lane: Int) {
+        guard let best = notes.enumerated()
+            .filter({ $0.element.lane == lane })
+            .min(by: { abs($0.element.node.position.y - targetY) < abs($1.element.node.position.y - targetY) }) else {
+            combo = 0
+            flashLane(lane, color: SKColor(calibratedRed: 0.95, green: 0.18, blue: 0.16, alpha: 1))
+            return
+        }
+        let distance = abs(best.element.node.position.y - targetY)
+        if distance <= 58 {
+            let perfect = distance <= 22
+            hit += 1
+            combo += 1
+            bestCombo = max(bestCombo, combo)
+            score += perfect ? 120 + combo * 4 : 70 + combo * 2
+            flashLane(lane, color: perfect ? .gold : SKColor(calibratedRed: 0.72, green: 0.36, blue: 1.00, alpha: 1))
+            spark(at: best.element.node.position, color: perfect ? .gold : SKColor(calibratedRed: 0.72, green: 0.36, blue: 1.00, alpha: 1))
+            best.element.node.removeFromParent()
+            notes.remove(at: best.offset)
+        } else {
+            combo = 0
+            flashLane(lane, color: SKColor(calibratedRed: 0.95, green: 0.18, blue: 0.16, alpha: 1))
+        }
+    }
+
+    private func flashLane(_ lane: Int, color: SKColor) {
+        let flash = roundedRect(size: CGSize(width: 96, height: size.height - 176), radius: 10, color: color.withAlphaComponent(0.20), stroke: .clear, lineWidth: 0)
+        flash.position = CGPoint(x: size.width / 2 + lanes[lane], y: size.height / 2 - 18)
+        flash.zPosition = -1
+        addChild(flash)
+        flash.run(.sequence([.fadeOut(withDuration: 0.18), .removeFromParent()]))
+    }
+
+    private func updateHUD() {
+        hud.text = "Rhythm Forge   Hits \(hit)/\(totalNotes)   Miss \(missed)   Combo \(combo)   Best \(bestCombo)   Score \(score)"
+    }
+
+    private func restart() {
+        children.filter { $0.zPosition >= 1000 || $0.name == "rhythm" }.forEach { $0.removeFromParent() }
+        notes.forEach { $0.node.removeFromParent() }
+        notes.removeAll()
+        isGameOver = false
+        lastUpdateTime = 0
+        spawnTimer = 0.55
+        spawned = 0
+        hit = 0
+        missed = 0
+        combo = 0
+        bestCombo = 0
+        score = 0
+        drawLanes()
+        updateHUD()
     }
 }
 

@@ -1,12 +1,15 @@
 # Nashy Game Studio Arcade
 
-A native macOS SpriteKit arcade app containing five small portfolio games:
+A native macOS SpriteKit arcade app containing eight small portfolio games:
 
 - **One Button Samurai**: press Space to dash, parry close calls, build focus, and survive the ambush.
 - **Micro Dungeon**: use WASD or arrow keys to clear three procedural tactical floors with traps, relics, armor, and upgrades.
 - **Stock Market Survivor**: buy, sell, or hold through timed market shocks and protect your portfolio for 30 days.
 - **Neon Pong Royale**: use W/S or arrow keys to win a first-to-seven paddle duel.
 - **Campus Dash**: collect notes, dodge bikes, and reach class before the timer runs out.
+- **Brickforge Breakout**: clear three forge stages with paddle control, heat splits, and multiball pressure.
+- **Starforge Courier**: collect cargo, dodge asteroids, and complete six deliveries before oxygen runs out.
+- **Rhythm Forge**: hit A/S/D/F lanes on beat, build combo, and clear a 32-note timing set.
 
 ## Why This Exists
 
@@ -26,7 +29,7 @@ adding more prototypes:
 - store-style capsule cards for every game
 - playable status chips and short session-length labels
 - richer generated capsule art for each prototype
-- release-track positioning for the three strongest games
+- release-track positioning for the strongest games
 - packaged macOS app output for portfolio demos
 
 ## Run in Development
@@ -62,3 +65,6 @@ dist/Nashy Game Studio Arcade.app
 - Stock Market Survivor: `B` to buy, `S` to sell, `H` to hold.
 - Neon Pong Royale: `W/S` or arrow keys.
 - Campus Dash: `WASD` or arrow keys.
+- Brickforge Breakout: `A/D` or arrows to move, `Space` for heat split.
+- Starforge Courier: `WASD` or arrows to fly.
+- Rhythm Forge: `A/S/D/F` to strike lanes.
