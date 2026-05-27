@@ -56,6 +56,24 @@ The packaged app is written to:
 dist/Nashy Game Studio Arcade.app
 ```
 
+## Package Brickforge Breakout Standalone
+
+```bash
+./scripts/package-brickforge.sh
+```
+
+The standalone Steam-candidate app is written to:
+
+```text
+dist/Brickforge Breakout.app
+```
+
+Steam release prep materials live in:
+
+```text
+steam/brickforge/
+```
+
 ## Controls
 
 - `Esc`: return to the game menu.

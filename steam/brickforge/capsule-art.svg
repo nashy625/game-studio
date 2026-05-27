@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="430" viewBox="0 0 920 430">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#32100b"/>
+      <stop offset="0.48" stop-color="#10090b"/>
+      <stop offset="1" stop-color="#070507"/>
+    </linearGradient>
+    <radialGradient id="ember" cx="27%" cy="25%" r="70%">
+      <stop offset="0" stop-color="#ff5c2e" stop-opacity="0.9"/>
+      <stop offset="0.42" stop-color="#ff5c2e" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#ff5c2e" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="920" height="430" fill="url(#bg)"/>
+  <rect width="920" height="430" fill="url(#ember)"/>
+  <g opacity="0.16" stroke="#f4dfb8">
+    <path d="M0 330H920M0 270H920M0 210H920M0 150H920M0 90H920"/>
+    <path d="M80 0V430M180 0V430M280 0V430M380 0V430M480 0V430M580 0V430M680 0V430M780 0V430M880 0V430"/>
+  </g>
+  <g transform="translate(485 68)">
+    <g filter="url(#glow)">
+      <rect x="0" y="0" width="72" height="28" rx="6" fill="#ff5c2e"/>
+      <rect x="82" y="0" width="72" height="28" rx="6" fill="#ffd05a"/>
+      <rect x="164" y="0" width="72" height="28" rx="6" fill="#ff5c2e"/>
+      <rect x="246" y="0" width="72" height="28" rx="6" fill="#ffd05a"/>
+      <rect x="41" y="40" width="72" height="28" rx="6" fill="#ffd05a"/>
+      <rect x="123" y="40" width="72" height="28" rx="6" fill="#ff5c2e"/>
+      <rect x="205" y="40" width="72" height="28" rx="6" fill="#ffd05a"/>
+      <rect x="0" y="80" width="72" height="28" rx="6" fill="#ff5c2e"/>
+      <rect x="82" y="80" width="72" height="28" rx="6" fill="#ffd05a"/>
+      <rect x="164" y="80" width="72" height="28" rx="6" fill="#ff5c2e"/>
+      <rect x="246" y="80" width="72" height="28" rx="6" fill="#ffd05a"/>
+    </g>
+    <rect x="58" y="238" width="210" height="24" rx="12" fill="#f4dfb8" stroke="#ff5c2e" stroke-width="4"/>
+    <circle cx="164" cy="178" r="20" fill="#f4dfb8" stroke="#ffd05a" stroke-width="5"/>
+    <circle cx="102" cy="154" r="14" fill="#ffd05a"/>
+    <circle cx="226" cy="136" r="14" fill="#ffd05a"/>
+  </g>
+  <g transform="translate(58 78)">
+    <text x="0" y="0" fill="#ffd05a" font-family="Avenir Next, Inter, Arial" font-size="19" font-weight="700" letter-spacing="4">SCORE ATTACK BREAKOUT</text>
+    <text x="0" y="72" fill="#f4dfb8" font-family="Avenir Next, Inter, Arial" font-size="66" font-weight="900">BRICKFORGE</text>
+    <text x="0" y="138" fill="#f4dfb8" font-family="Avenir Next, Inter, Arial" font-size="66" font-weight="900">BREAKOUT</text>
+    <text x="0" y="188" fill="#c9b99f" font-family="Avenir Next, Inter, Arial" font-size="24" font-weight="500">Heat. Shields. Multiball. Ten forge stages.</text>
+    <g transform="translate(0 228)">
+      <rect width="142" height="34" rx="8" fill="#ff5c2e"/>
+      <text x="71" y="23" fill="#070507" font-family="Avenir Next, Inter, Arial" font-size="14" font-weight="900" text-anchor="middle">PLAY RUN</text>
+      <rect x="154" width="142" height="34" rx="8" fill="none" stroke="#ffd05a"/>
+      <text x="225" y="23" fill="#ffd05a" font-family="Avenir Next, Inter, Arial" font-size="14" font-weight="800" text-anchor="middle">10 STAGES</text>
+    </g>
+  </g>
+</svg>

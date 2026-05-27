@@ -8,7 +8,8 @@ let package = Package(
         .macOS(.v13)
     ],
     products: [
-        .executable(name: "GameStudioApp", targets: ["GameStudioApp"])
+        .executable(name: "GameStudioApp", targets: ["GameStudioApp"]),
+        .executable(name: "BrickforgeBreakout", targets: ["BrickforgeBreakout"])
     ],
     targets: [
         .executableTarget(
@@ -17,6 +18,13 @@ let package = Package(
                 .linkedFramework("AppKit"),
                 .linkedFramework("SpriteKit"),
                 .linkedFramework("GameplayKit")
+            ]
+        ),
+        .executableTarget(
+            name: "BrickforgeBreakout",
+            linkerSettings: [
+                .linkedFramework("AppKit"),
+                .linkedFramework("SpriteKit")
             ]
         )
     ]
