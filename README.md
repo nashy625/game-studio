@@ -18,6 +18,17 @@ The arcade shell uses a Steam-inspired library menu with capsule-style game
 cards, genre labels, and release-build positioning so the collection reads like
 an indie store shelf rather than a loose prototype folder.
 
+## Steam-Ready Polish Pass
+
+The current shell is focused on making the collection feel presentable before
+adding more prototypes:
+
+- store-style capsule cards for every game
+- playable status chips and short session-length labels
+- richer generated capsule art for each prototype
+- release-track positioning for the three strongest games
+- packaged macOS app output for portfolio demos
+
 ## Run in Development
 
 ```bash

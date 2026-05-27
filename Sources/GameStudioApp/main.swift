@@ -132,6 +132,23 @@ enum GameKind: String, CaseIterable {
         case .campus: return "Make it before class."
         }
     }
+
+    var releaseStatus: String {
+        switch self {
+        case .samurai, .dungeon, .stocks: return "FLAGSHIP"
+        case .pong, .campus: return "ARCADE"
+        }
+    }
+
+    var sessionLength: String {
+        switch self {
+        case .samurai: return "3-5 MIN RUN"
+        case .dungeon: return "8-12 MIN RUN"
+        case .stocks: return "5 MIN RUN"
+        case .pong: return "FIRST TO 7"
+        case .campus: return "2 MIN SPRINT"
+        }
+    }
 }
 
 extension SKColor {
@@ -177,7 +194,7 @@ final class MenuScene: SKScene {
         cardFrames.removeAll()
         drawBackdrop()
 
-        let badge = label("STEAM-READY PROTOTYPE LAB", size: 14, color: .gold, weight: .regular)
+        let badge = label("STEAM-READY POLISH PASS", size: 14, color: .gold, weight: .regular)
         badge.position = CGPoint(x: size.width / 2, y: size.height - 42)
         addChild(badge)
 
@@ -188,6 +205,8 @@ final class MenuScene: SKScene {
         let subtitle = label("Native desktop games with polished loops, capsule art direction, and release-ready structure", size: 17, color: SKColor.bone.withAlphaComponent(0.72), weight: .regular)
         subtitle.position = CGPoint(x: size.width / 2, y: size.height - 128)
         addChild(subtitle)
+
+        drawStoreStats()
 
         let games = GameKind.allCases
         let columns = min(3, games.count)
@@ -200,7 +219,7 @@ final class MenuScene: SKScene {
         let totalWidth = cardWidth * CGFloat(columns) + spacingX * CGFloat(columns - 1)
         let totalHeight = cardHeight * CGFloat(rows) + spacingY * CGFloat(rows - 1)
         let startX = size.width / 2 - totalWidth / 2 + cardWidth / 2
-        let startY = size.height / 2 + totalHeight / 2 - cardHeight / 2 - 4
+        let startY = size.height / 2 + totalHeight / 2 - cardHeight / 2 - 28
 
         for (index, game) in games.enumerated() {
             let col = index % columns
@@ -213,9 +232,15 @@ final class MenuScene: SKScene {
             card.position = CGPoint(x: x, y: y)
             addChild(card)
 
+            let highlight = roundedRect(size: CGSize(width: cardWidth - 12, height: cardHeight - 12), radius: 7, color: .clear, stroke: SKColor.white.withAlphaComponent(0.05), lineWidth: 1)
+            highlight.position = CGPoint(x: x, y: y)
+            addChild(highlight)
+
             let capsule = roundedRect(size: CGSize(width: cardWidth - 22, height: cardHeight * 0.42), radius: 6, color: game.accent.withAlphaComponent(0.28), stroke: SKColor.bone.withAlphaComponent(0.10), lineWidth: 1)
             capsule.position = CGPoint(x: x, y: y + cardHeight * 0.22)
             addChild(capsule)
+
+            drawCapsuleArt(for: game, center: capsule.position, size: CGSize(width: cardWidth - 22, height: cardHeight * 0.42))
 
             for stripe in 0..<5 {
                 let line = SKShapeNode(rectOf: CGSize(width: cardWidth - 52, height: 3), cornerRadius: 2)
@@ -236,29 +261,127 @@ final class MenuScene: SKScene {
             glyph.position = icon.position
             addChild(glyph)
 
+            drawChip(game.releaseStatus, at: CGPoint(x: x + cardWidth / 2 - 52, y: y + cardHeight / 2 - 20), color: game.accent)
+
             let titleNode = label(game.title, size: 21, color: .bone)
             titleNode.position = CGPoint(x: x, y: y - 12)
             addChild(titleNode)
 
-            let lines = wrapped(game.capsuleLine, max: 28)
+            let lines = wrapped(game.subtitle, max: 34).prefix(2)
             for (lineIndex, line) in lines.enumerated() {
-                let lineNode = label(line, size: 14, color: SKColor.bone.withAlphaComponent(0.72), weight: .regular)
+                let lineNode = label(line, size: 13, color: SKColor.bone.withAlphaComponent(0.72), weight: .regular)
                 lineNode.position = CGPoint(x: x, y: y - 42 - CGFloat(lineIndex) * 17)
                 addChild(lineNode)
             }
 
             let genre = label(game.genre, size: 11, color: SKColor.bone.withAlphaComponent(0.62), weight: .regular)
-            genre.position = CGPoint(x: x, y: y - cardHeight * 0.33)
+            genre.position = CGPoint(x: x, y: y - cardHeight * 0.29)
             addChild(genre)
 
-            let cta = label("PLAY BUILD", size: 14, color: game.accent)
-            cta.position = CGPoint(x: x, y: y - cardHeight * 0.42)
+            let session = label(game.sessionLength, size: 10, color: SKColor.bone.withAlphaComponent(0.56), weight: .regular)
+            session.position = CGPoint(x: x - cardWidth / 2 + 62, y: y - cardHeight / 2 + 20)
+            addChild(session)
+
+            let cta = label("PLAY NOW", size: 14, color: game.accent)
+            cta.position = CGPoint(x: x + cardWidth / 2 - 54, y: y - cardHeight / 2 + 20)
             addChild(cta)
         }
 
         let footer = label("Click a capsule. Press Esc inside any game to return.", size: 16, color: SKColor.bone.withAlphaComponent(0.58), weight: .regular)
         footer.position = CGPoint(x: size.width / 2, y: 46)
         addChild(footer)
+    }
+
+    private func drawStoreStats() {
+        let stats = [
+            "5 playable games",
+            "Native macOS build",
+            "Capsule shelf UI",
+            "Release-track prototypes"
+        ]
+        let totalWidth: CGFloat = 680
+        let chipWidth = totalWidth / CGFloat(stats.count)
+        let y = size.height - 160
+        for (index, text) in stats.enumerated() {
+            let x = size.width / 2 - totalWidth / 2 + chipWidth / 2 + CGFloat(index) * chipWidth
+            drawChip(text.uppercased(), at: CGPoint(x: x, y: y), color: index == 0 ? .gold : SKColor.bone.withAlphaComponent(0.62), width: chipWidth - 14)
+        }
+    }
+
+    private func drawChip(_ text: String, at point: CGPoint, color: SKColor, width: CGFloat = 94) {
+        let chip = roundedRect(size: CGSize(width: width, height: 24), radius: 7, color: color.withAlphaComponent(0.12), stroke: color.withAlphaComponent(0.34), lineWidth: 1)
+        chip.position = point
+        addChild(chip)
+
+        let chipText = label(text, size: 9.5, color: color, weight: .regular)
+        chipText.position = point
+        addChild(chipText)
+    }
+
+    private func drawCapsuleArt(for game: GameKind, center: CGPoint, size artSize: CGSize) {
+        let baseY = center.y - artSize.height * 0.24
+        switch game {
+        case .samurai:
+            let blade = SKShapeNode(rectOf: CGSize(width: artSize.width * 0.78, height: 6), cornerRadius: 3)
+            blade.fillColor = SKColor.white.withAlphaComponent(0.62)
+            blade.strokeColor = .clear
+            blade.zRotation = -0.34
+            blade.position = CGPoint(x: center.x, y: center.y + 4)
+            addChild(blade)
+            let sun = SKShapeNode(circleOfRadius: 24)
+            sun.fillColor = game.accent.withAlphaComponent(0.52)
+            sun.strokeColor = .clear
+            sun.position = CGPoint(x: center.x - artSize.width * 0.28, y: center.y + artSize.height * 0.16)
+            addChild(sun)
+        case .dungeon:
+            for row in 0..<3 {
+                for col in 0..<5 {
+                    let tileNode = roundedRect(size: CGSize(width: 22, height: 18), radius: 3, color: SKColor.black.withAlphaComponent(0.18), stroke: game.accent.withAlphaComponent(0.22), lineWidth: 1)
+                    tileNode.position = CGPoint(x: center.x - 52 + CGFloat(col) * 26, y: baseY + CGFloat(row) * 22)
+                    addChild(tileNode)
+                }
+            }
+        case .stocks:
+            let path = CGMutablePath()
+            path.move(to: CGPoint(x: center.x - artSize.width * 0.38, y: baseY))
+            path.addLine(to: CGPoint(x: center.x - artSize.width * 0.16, y: baseY + 34))
+            path.addLine(to: CGPoint(x: center.x + artSize.width * 0.03, y: baseY + 18))
+            path.addLine(to: CGPoint(x: center.x + artSize.width * 0.25, y: baseY + 52))
+            path.addLine(to: CGPoint(x: center.x + artSize.width * 0.40, y: baseY + 44))
+            let line = SKShapeNode(path: path)
+            line.strokeColor = SKColor.white.withAlphaComponent(0.70)
+            line.lineWidth = 4
+            line.lineCap = .round
+            addChild(line)
+        case .pong:
+            let left = SKShapeNode(rectOf: CGSize(width: 8, height: 56), cornerRadius: 4)
+            let right = SKShapeNode(rectOf: CGSize(width: 8, height: 56), cornerRadius: 4)
+            left.fillColor = SKColor.white.withAlphaComponent(0.65)
+            right.fillColor = left.fillColor
+            left.strokeColor = .clear
+            right.strokeColor = .clear
+            left.position = CGPoint(x: center.x - artSize.width * 0.34, y: center.y)
+            right.position = CGPoint(x: center.x + artSize.width * 0.34, y: center.y)
+            addChild(left)
+            addChild(right)
+            let ball = SKShapeNode(circleOfRadius: 8)
+            ball.fillColor = game.accent
+            ball.strokeColor = .clear
+            ball.position = center
+            addChild(ball)
+        case .campus:
+            for offset in [-54, -18, 18, 54] {
+                let route = SKShapeNode(rectOf: CGSize(width: 18, height: 58), cornerRadius: 8)
+                route.fillColor = SKColor.white.withAlphaComponent(0.15)
+                route.strokeColor = .clear
+                route.zRotation = 0.28
+                route.position = CGPoint(x: center.x + CGFloat(offset), y: center.y)
+                addChild(route)
+            }
+            let note = roundedRect(size: CGSize(width: 42, height: 30), radius: 4, color: .gold.withAlphaComponent(0.72), stroke: .clear, lineWidth: 0)
+            note.position = CGPoint(x: center.x, y: center.y + 6)
+            addChild(note)
+        }
     }
 
     private func drawBackdrop() {
